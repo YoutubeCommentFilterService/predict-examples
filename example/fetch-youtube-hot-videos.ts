@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import CommentFetcher from '../modules/comment-fetcher';
-import CommentPredicter from '../modules/comment-predicter';
+import CommentPredictor from '../modules/comment-predictor';
 import MailerService from '../modules/mailer-service';
 import VideoFetcher from '../modules/video-fetcher';
 

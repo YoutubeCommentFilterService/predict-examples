@@ -66,6 +66,7 @@ export interface FetchedComment {
 
 export interface PredictResponse {
     items: PredictResult[];
+    model_type: string;
 }
 
 export interface PredictResult {
@@ -130,6 +131,17 @@ export interface YoutubeThumbnail {
     height: string;
 }
 
+export interface FetchedVideo {
+    id: string;
+    title: string;
+    thumbnail: string;
+    description: string;
+    channelId: string;
+    channelTitle: string;
+    publishedAt: string;
+    categoryId: string;
+}
+
 export interface YoutubeVideoCategoryList extends YoutubeCommonField {
     nextPageToken?: string;
     prevPageToken?: string;
@@ -137,14 +149,58 @@ export interface YoutubeVideoCategoryList extends YoutubeCommonField {
         totalResults: number;
         resultsPerPage: number;
     };
-    items: VideoCategory[];
+    items: YoutubeVideoCategory[];
 }
 
-export interface VideoCategory extends YoutubeCommonField {
+export interface YoutubeVideoCategory extends YoutubeCommonField {
     id: string;
     snippet: {
         channelId: string;
         title: string;
         assignable: boolean;
     };
+}
+
+export interface YoutubeChannelList extends YoutubeCommonField {
+    nextPageToken?: string;
+    prevPageToken?: string;
+    pageInfo: {
+        totalResults: number;
+        resultsPerPage: number;
+    };
+    items: YoutubeChannelResource[]
+}
+
+export interface YoutubeChannelResource extends YoutubeCommonField {
+    id: string;
+    snippet: YoutubeChannelSnippet;
+    contentDetails: {
+        relatedPlaylists: {
+            likes: string;
+            uploads: string;
+        };
+    };
+}
+
+export interface YoutubeChannelSnippet {
+    title: string;
+    description: string;
+    customUrl: string;
+    publishedAt: string;
+    thumbnails: {
+        default: YoutubeThumbnail;
+        medium: YoutubeThumbnail;
+        high: YoutubeThumbnail;
+    };
+    localized: {
+        title: string;
+        description: string;
+    };
+    country: string;
+}
+
+export interface ChannelInfo {
+    id: string;
+    playlistId: string;
+    handler: string;
 }

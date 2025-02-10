@@ -9,7 +9,7 @@ export default class CommentFetcher {
         if (!this.youtubeDataKey) return;
     }
 
-    fetchComment = async (videoId: string, maxResults: number = 100): Promise<FetchedComment[]> => {
+    fetchComment = async (videoId: string, maxResults: number = 100, videoCategoryId: string = '', debug: boolean = false): Promise<FetchedComment[]> => {
         if (maxResults <= 0) maxResults = 100
         else if (maxResults > 100) maxResults = 100
 
@@ -31,17 +31,23 @@ export default class CommentFetcher {
                 comments.push(...this.extractComment(data))
                 nextPageToken = data.nextPageToken;
             } catch (err) {
-                console.log(err.response.data)
+                if (axios.isAxiosError(err)) console.error(err.response?.data)
                 nextPageToken = '';
             }
         } while (nextPageToken);
 
-        console.log(`fetch ${videoId}'s comment finished`)
+        console.log(`fetch ${videoId}'s comment finished, len: ${comments.length}`)
 
         comments.sort((a, b) => {
             if (a.likes != b.likes) return b.likes - a.likes;
             return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
         })
+
+        if (debug) {
+            const topCommentsCount = this.getSliceCount(comments.length)
+            const tempArr = new Set([...comments.slice(0, topCommentsCount), ...comments.filter(x => x.likes <= 1)])
+            comments = [...tempArr]
+        }
 
         return comments;
     }
@@ -74,4 +80,17 @@ export default class CommentFetcher {
     }
 
     private containsKorean = (text: string) => /[\p{Script=Hangul}]/u.test(text);
+
+    private getSliceCount = (length: number) => {
+        if (length <= 100) return 10;
+        if (length <= 300) return 15;
+        if (length <= 500) return 20;
+        if (length <= 700) return 25
+        if (length <= 1000) return 30;
+        if (length <= 2000) return 40;
+        if (length <= 3000) return 50;
+        if (length <= 4000) return 60;
+        if (length <= 5000) return 70;
+        else return 80
+    }
 }

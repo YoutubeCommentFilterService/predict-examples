@@ -15,6 +15,5 @@ if (argv.length !== 1) {
 }
 
 const videoId = argv[0]
-const comments = await commentFetcher.fetchComment(videoId, 100)
+const { comments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId, 100)
 console.log(comments.length)
-

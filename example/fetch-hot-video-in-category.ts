@@ -18,12 +18,12 @@ const excludeTitle = ['MV', 'M/V', 'mv', 'm/v', '직캠']
 
 let videos = await videoFetcher.fetchVideo()
 videos = videos.filter((video) => {
-    const isExcludedCategory = excludeCategory.includes(categories[video.snippet.categoryId])
-    const isExcludedTitle = excludeTitle.some(keyword => video.snippet.title.includes(keyword))
+    const isExcludedCategory = excludeCategory.includes(categories[video.categoryId])
+    const isExcludedTitle = excludeTitle.some(keyword => video.title.includes(keyword))
     return !(isExcludedCategory || isExcludedTitle)
 })
 
 for (let video of videos) {
-    console.log(`${video.id}, ${categories[video.snippet.categoryId]}, ${video.snippet.title}`)
+    console.log(`${video.id}, ${categories[video.categoryId]}, ${video.title}`)
 }
 console.log(`total result: ${videos.length}`)

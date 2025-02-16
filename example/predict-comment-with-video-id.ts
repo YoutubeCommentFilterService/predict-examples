@@ -1,34 +1,31 @@
-import CommentFetcher from '../modules/comment-fetcher';
-import CommentPredictor from '../modules/comment-predictor';
-import MailerService from '../modules/mailer-service';
-import type { FetchedComment } from '../types';
+import type { ExtractedComment } from '../types';
 import dotenv from 'dotenv'
+
+import fs from 'fs';
+import appRootPath from 'app-root-path';
+import { Services } from '../modules';
 
 dotenv.config({
     path: '../.env'
 })
 
 console.log(process.env.YOUTUBE_DATA_API_KEY)
-const commentFetcher = new CommentFetcher();
-const commentPredictor = new CommentPredictor();
-const mailerService = new MailerService();
+const channelInfoFercher = new Services.ChannelInfoFetcher();
+const videoFetcher = new Services.VideoFetcher();
+const commentFetcher = new Services.CommentFetcher();
+const commentPredictor = new Services.CommentPredictor();
 
-const videoId = '-SI22ZU0mFQ'
-const fetchedComments: FetchedComment[] = await commentFetcher.fetchComment(videoId);
-console.time("Execution Time")
-const predictedComments = await commentPredictor.predictComment(fetchedComments, videoId);
-console.timeEnd("Execution Time")
 
-console.log(predictedComments)
+const videoIds: string[] = ['qgg6oEVcf9c'];
 
-if (predictedComments.length !== 0) {
-    const data = {
-        video: {
-            id: videoId,
-            title: "asdf",
-        },
-        comments: predictedComments
-    };
+const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
+const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').trim().split('\n')
 
-    mailerService.sendMail("gkstkdgus821@gmail.com", data);
+for (let videoId of videoIds) {
+    const { comments: fetchedComments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId);
+    console.time("Execution Time")
+    const predicted = await commentPredictor.predictComment(fetchedComments, videoId, true);
+    console.timeEnd("Execution Time")
+
+    if (predicted.length === 0) continue; // 스팸으로 판명된 것이 없음
 }

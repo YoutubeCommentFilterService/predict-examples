@@ -19,7 +19,7 @@ const categories = await videoFetcher.fetchCategories();
 let videos = await videoFetcher.fetchVideo()
 
 for (let video of videos) {
-    const comments = await commentFetcher.fetchComment(video.id);
+    const { comments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(video.id);
     const predictResults = await commentPredicter.predictComment(comments, video.id);
 
     // const mailData = {

@@ -3,12 +3,16 @@ interface YoutubeCommonField {
     etag: string
 }
 
-export interface YoutubeCommentThreadList extends YoutubeCommonField {
+interface YoutubeCommonPagenation {
     nextPageToken?: string;
-    pageInfo: {
+    prevPageToken?: string;
+    pageIngo: {
         totalResults: number;
         resultsPerPage: number;
-    };
+    }
+}
+
+export interface YoutubeCommentThreadList extends YoutubeCommonField, YoutubeCommonPagenation{
     items: YoutubeCommentThread[]
 }
 
@@ -17,17 +21,21 @@ export interface YoutubeCommentThread extends YoutubeCommonField {
     snippet: {
         channelId: string;
         videoId: string;
-        topLevelComment: YoutubeComments;
+        topLevelComment: YoutubeComment;
         canReply: boolean;
         totalReplyCount: number;
         isPublic: boolean;
     };
     replies?: {
-        comments: YoutubeComments[]
+        comments: YoutubeComment[]
     }
 }
 
-export interface YoutubeComments extends YoutubeCommonField {
+export interface YoutubeCommentList extends YoutubeCommonField, YoutubeCommonPagenation {
+    items: YoutubeComment[]
+}
+
+export interface YoutubeComment extends YoutubeCommonField {
     id: string;
     snippet: {
         authorDisplayName: string;
@@ -54,14 +62,15 @@ export interface SpamResult {
     comment: string;
 }
 
-export interface FetchedComment {
+export interface ExtractedComment {
     id: string;
     likes: number;
     nickname: string;
     profileImage: string;
     originalText: string;
-    trimmedText: string;
+    translatedText: string;
     publishedAt: string;
+    updatedAt: string;
 }
 
 export interface PredictResponse {
@@ -89,13 +98,7 @@ export interface SpamContent extends SpamResult {
     comment_p: string;
 }
 
-export interface YoutubeVideoList extends YoutubeCommonField {
-    nextPageToken?: string;
-    prevPageToken?: string;
-    pageInfo: {
-        totalResults: number;
-        resultsPerPage: number;
-    },
+export interface YoutubeVideoList extends YoutubeCommonField, YoutubeCommonPagenation {
     items: YoutubeVideo[]
 }
 
@@ -122,7 +125,16 @@ export interface YoutubeVideo extends YoutubeCommonField {
             description: string;
         };
         defaultAudioLanguage: string;
-    }
+    };
+    contentDetails: {
+        duration: string;
+        dimension: string;
+        definition: string;
+        caption: string;
+        licensedContent: boolean;
+        contentRating: {};
+        projection: string;
+    };
 }
 
 export interface YoutubeThumbnail {
@@ -142,13 +154,7 @@ export interface FetchedVideo {
     categoryId: string;
 }
 
-export interface YoutubeVideoCategoryList extends YoutubeCommonField {
-    nextPageToken?: string;
-    prevPageToken?: string;
-    pageInfo: {
-        totalResults: number;
-        resultsPerPage: number;
-    };
+export interface YoutubeVideoCategoryList extends YoutubeCommonField, YoutubeCommonPagenation {
     items: YoutubeVideoCategory[];
 }
 
@@ -161,13 +167,7 @@ export interface YoutubeVideoCategory extends YoutubeCommonField {
     };
 }
 
-export interface YoutubeChannelList extends YoutubeCommonField {
-    nextPageToken?: string;
-    prevPageToken?: string;
-    pageInfo: {
-        totalResults: number;
-        resultsPerPage: number;
-    };
+export interface YoutubeChannelList extends YoutubeCommonField, YoutubeCommonPagenation {
     items: YoutubeChannelResource[]
 }
 

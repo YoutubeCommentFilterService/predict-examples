@@ -10,8 +10,7 @@ export default class VideoFetcher {
 
     fetchVideo = async (
         maxResults: number = 10, 
-        notFetchFilter?: { categoryId?: string[], title?: string[]},
-        fetchFilter?: { categoryId?: string[], title?: string[]},
+        includeShorts: boolean = false
     ): Promise<FetchedVideo[]> => {
         if (maxResults <= 0) maxResults = 10
         else if (maxResults > 50) maxResults = 50
@@ -21,35 +20,40 @@ export default class VideoFetcher {
         do {
             const response: AxiosResponse<YoutubeVideoList> = await axios.get<YoutubeVideoList>("https://www.googleapis.com/youtube/v3/videos", {
                 params: {
-                    key: this.youtubeDataKey,
-                    part: "snippet",
-                    maxResults,
-                    regionCode: "KR",
-                    chart: "mostPopular",
-                    pageToken: nextPageToken,
+                    ...this.defaultParams(maxResults, nextPageToken),
                 }
             })
             videos.push(...response.data.items)
             nextPageToken = response.data.nextPageToken
         } while(nextPageToken);
 
-        if (notFetchFilter) {
-            videos = videos.filter(video => {
-                const result = 
-                    !(notFetchFilter.categoryId?.includes(`${video.snippet.categoryId}`)) &&
-                    !(notFetchFilter.title?.some(title => video.snippet.title.includes(title)))
-                    // console.log(`${!(notFetchFilter.categoryId?.includes(video.snippet.categoryId))}, ${!(notFetchFilter.title?.some(title => video.snippet.title.includes(title)))} ==> category - ${video.snippet.categoryId.padStart(2, ' ')}, ${video.snippet.title}`)
-                return result
-            })
-        }
-        if (fetchFilter) {
-            videos = videos.filter(video => 
-                ((fetchFilter.categoryId?.length ?? 0) === 0 || fetchFilter.categoryId?.includes(video.snippet.categoryId)) ||
-                ((fetchFilter.title?.length ?? 0) === 0 || fetchFilter.title?.some(title => video.snippet.title.includes(title)))
-            )
-        }
+        if (!includeShorts) videos = videos.filter(video => !this.isShortsVideo(video))
 
-        return videos.map(video => ({
+        return this.generateCommonVideoDatas(videos);
+    }
+
+    fetchVideoByCategoryId = async(videoCategoryId: string | number, maxResults: number, includeShorts: boolean = false): Promise<FetchedVideo[]> => {
+        if (maxResults <= 0) maxResults = 10
+        else if (maxResults > 50) maxResults = 50
+        let nextPageToken: string | undefined = "";
+        let videos: YoutubeVideo[] = []
+        do {
+            const response: AxiosResponse<YoutubeVideoList> = await axios.get<YoutubeVideoList>("https://www.googleapis.com/youtube/v3/videos", {
+                params: {
+                    ...this.defaultParams(maxResults, nextPageToken),
+                    videoCategoryId: `${videoCategoryId}`,
+                }
+            })
+            videos.push(...response.data.items)
+            nextPageToken = response.data.nextPageToken
+        } while(nextPageToken);
+        
+        if (!includeShorts) videos = videos.filter(video => !this.isShortsVideo(video))
+
+        return this.generateCommonVideoDatas(videos)
+    }
+
+    private generateCommonVideoDatas = (videos: YoutubeVideo[]): FetchedVideo[] => videos.map(video => ({
             id: video.id,
             title: video.snippet.title,
             thumbnail: video.snippet.thumbnails.medium.url,
@@ -58,10 +62,31 @@ export default class VideoFetcher {
             channelTitle: video.snippet.channelTitle,
             publishedAt: video.snippet.publishedAt,
             categoryId: video.snippet.categoryId,
-        })) as FetchedVideo[]
+        }));
+
+    private defaultParams = (maxResults: number, nextPageToken: string) => ({
+        key: this.youtubeDataKey,
+        part: "snippet, contentDetails",
+        maxResults,
+        regionCode: "KR",
+        chart: "mostPopular",
+        pageToken: nextPageToken,
+    })
+
+    private isShortsVideo = (video: YoutubeVideo): boolean => {
+        const isUnderMinutes = this.convertISO8601ToSecond(video.contentDetails.duration) <= 120 // 2분
+        const isDescriptionIncludesHashtag = /#shorts/gi.test(video.snippet.description)
+        return isUnderMinutes || isDescriptionIncludesHashtag;
+    };
+
+    private convertISO8601ToSecond = (duration: string): number => {
+        const matched = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/)
+        if (!matched) return NaN
+        const [hour, minute, second] = matched.slice(1, 4).map(time => parseInt(time) || 0);
+        return hour * 3600 + minute * 60 + second
     }
 
-    fetchCategories = async (): Promise<{}> => {
+    fetchCategories = async (): Promise<{[key: string]: string}> => {
         const categories: {[key: string]: string} = {}
         try {
             const response = await axios.get<YoutubeVideoCategoryList>('https://www.googleapis.com/youtube/v3/videoCategories', {

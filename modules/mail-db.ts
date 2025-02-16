@@ -1,17 +1,15 @@
 export default class MailDB {
     private byChannelId: { [key: string]: string };
-    private byChannelHandler: { [key: string]: string };
 
-    constructor(emails: string[][]) {
-        this.byChannelId = {}
-        this.byChannelHandler = {}
-        emails.forEach((email) => {
-            this.byChannelHandler[email[0].trim().toLowerCase()] = email[2]
-            this.byChannelId[email[1].trim().toLowerCase()] = email[2]
-        })
+    constructor(emails: string[]) {
+        this.byChannelId = emails.reduce((acc, val) => {
+            if (val === '') return acc;
+            const [ channelId, email ] = val.split(',').map(data => data.trim())
+            acc[channelId] = email;
+            return acc;
+        }, {} as { [key: string]: string });
     }
 
-    getEmail = (key: string): string | undefined => this.getEmailByHandler(key) || this.getEmailByChannelId(key)
-    private getEmailByHandler = (handler: string): string | undefined => this.byChannelHandler[handler.toLowerCase()]
-    private getEmailByChannelId = (channelId: string): string | undefined => this.byChannelId[channelId.toLowerCase()]
+    getEmail = (key: string): string | undefined => this.byChannelId[key]
+    existUser = (key: string): string | undefined => Object.keys(this.byChannelId).find((id) => id === key)
 }

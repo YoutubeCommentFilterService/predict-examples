@@ -8,12 +8,7 @@ import type { SendMailData } from '../types';
 export default class MailerService {
     private transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo, SMTPTransport.Options>;
     private templatePath: string;
-    private alreadySent: string[];
-    private alreadySentVideoIdsPath: string;
     constructor() {
-        this.alreadySentVideoIdsPath = '../datas/already-sent.txt'
-        if (!fs.existsSync(this.alreadySentVideoIdsPath)) fs.writeFileSync(this.alreadySentVideoIdsPath, '');
-        this.alreadySent = fs.readFileSync(this.alreadySentVideoIdsPath, 'ascii').split('\n')
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -33,12 +28,7 @@ export default class MailerService {
             console.log('스팸이 감지되지 않았습니다')
             return;
         }
-        if (data.video.id in this.alreadySent) {
-            console.log('이미 보냈습니다');
-            return;
-        }
 
-        this.alreadySent.push(data.video.id);
         try {
             const title = `귀하의 → ${this.truncateString(data.video.title, 20)} ← 동영상에 스팸 의심 댓글이 달렸습니다.`
             const template = await this.renderTemplate(data)

@@ -76,12 +76,16 @@ export interface ExtractedComment {
 export interface PredictResponse {
     items: PredictResult[];
     model_type: string;
+    comment_categories: string[];
+    nickname_categories: string[];
 }
 
 export interface PredictResult {
     id: string;
     comment_predicted: string;
+    comment_predicted_prob: number[];
     nickname_predicted: string;
+    nickname_predicted_prob: number[];
 }
 
 export interface SendMailData {
@@ -94,8 +98,10 @@ export interface SendMailData {
 
 export interface SpamContent extends SpamResult {
     profileImage: string;
-    nickname_p: string;
-    comment_p: string;
+    nickname_predicted: string;
+    nickname_prob: string;
+    comment_predicted: string;
+    comment_prob: string;
 }
 
 export interface YoutubeVideoList extends YoutubeCommonField, YoutubeCommonPagenation {

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import VideoFetcher from '../modules/video-fetcher';
 import CommentFetcher from '../modules/comment-fetcher';
+import fs from 'fs'
 
 dotenv.config({path: '../.env'})
 
@@ -16,4 +17,9 @@ if (argv.length !== 1) {
 
 const videoId = argv[0]
 const { comments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId, 100)
+const re = /\n+/g
+fs.writeFile(`./${videoId}`, comments.map(data => data.translatedText.replace(re, '')).join('\n'), (err) => {
+    if (err) console.error(err)
+})
+
 console.log(comments.length)

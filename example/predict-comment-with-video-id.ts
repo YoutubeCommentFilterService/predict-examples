@@ -16,7 +16,7 @@ const commentFetcher = new Services.CommentFetcher();
 const commentPredictor = new Services.CommentPredictor();
 
 
-const videoIds: string[] = ['qgg6oEVcf9c'];
+const videoIds: string[] = ['vEIjQYiiOvM'];
 
 const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
 const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').trim().split('\n')
@@ -24,7 +24,7 @@ const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').
 for (let videoId of videoIds) {
     const { comments: fetchedComments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId);
     console.time("Execution Time")
-    const predicted = await commentPredictor.predictComment(fetchedComments, videoId, true);
+    const predicted = await commentPredictor.predictComment(fetchedComments, videoId);
     console.timeEnd("Execution Time")
 
     if (predicted.length === 0) continue; // 스팸으로 판명된 것이 없음

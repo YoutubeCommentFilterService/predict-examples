@@ -30,7 +30,7 @@ export default class MailerService {
         }
 
         try {
-            const title = `귀하의 → ${this.truncateString(data.video.title, 20)} ← 동영상에 스팸 의심 댓글이 달렸습니다.`
+            const title = `귀하의 → ${this.truncateString(data.video.title, 20)} ← 동영상에 스팸 의심 댓글이 감지되었습니다.`
             const template = await this.renderTemplate(data)
             const mailOptions = {
                 from: process.env.EMAIL_USER,

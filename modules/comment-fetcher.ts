@@ -5,6 +5,9 @@ import Translator from './translator';
 export default class CommentFetcher {
     private youtubeDataKey: string | undefined;
     private translator: Translator;
+    private imojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1FAFF}]|[\u{2600}-\u{26FF}]/gu;
+    private trimRegex = /[\s]/g;
+    private koreanRegex = /[가-힣ㄱ-ㅎㅏ-ㅣ0-9]/g;
 
     constructor() {
         this.youtubeDataKey = process.env.YOUTUBE_DATA_API_KEY;
@@ -46,8 +49,14 @@ export default class CommentFetcher {
             const updatedTime = new Date(comment.updatedAt);
             return updatedTime > baseTime;
         })
-
-        console.log(`fetch ${videoId}'s comment finished, len: ${comments.length}`)
+        // 모든 댓글을 가져온 후 댓글 번역 시작
+        // comments = await Promise.all(comments.map(async comment => {
+        //     let translatedText = comment.translatedText
+        //     // comment.translatedText = this.getKoreanRatio(comment.translatedText) <= 20
+        //     //                             ? await this.translator.translate(translatedText)
+        //     //                             : translatedText
+        //     return comment;
+        // }));
 
         return {comments, lastSearchTime: now};
     }
@@ -110,25 +119,14 @@ export default class CommentFetcher {
         return extractedReplies;
     }
 
-    //.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\[\]\{\}\:\;\"\'\<\>\,\.\?\/\s]/g, '')
     private extractComment = async (comment: YoutubeComment): Promise<ExtractedComment | undefined> => {
         const originalText = comment.snippet.textOriginal;
-        let trimmedText = originalText.replace(/[\r\n]+/g, ' ') // 개행을 띄어쓰기로 변환
-                                        .replace(/\s+/g, ' ')   // 띄어쓰기가 여러개인 경우 1개로 변환
-                                        .replace(/(.)\1{2,}/g, (_: any, char: string) => char.repeat(2))    // 같은 단어가 여러 개 반복되는 경우 2개로 제한
-                                        .trim();
-        // 한국어 비율 체크하여 번역. ratio는 % 단위 -> 0 ~ 100
-        // 20 이하인 경우 높은 확률로 외국어 댓글
-        const translatedText = this.getKoreanRatio(trimmedText) <= 20
-                                    ? await this.translator.translate(trimmedText)
-                                    : trimmedText.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\[\]\{\}\:\;\"\'\<\>\,\.\?\/\s]/g, '')
-        if (!trimmedText) return undefined;
         const result = {
             id: comment.id,
             likes: comment.snippet.likeCount,
             nickname: comment.snippet.authorDisplayName,
             originalText: originalText,
-            translatedText,
+            translatedText: originalText,    // 원래는 translatedText로 하면 안되긴 하지만, 일관성을 위해 사용
             profileImage: comment.snippet.authorProfileImageUrl,
             publishedAt: comment.snippet.publishedAt,
             updatedAt: comment.snippet.updatedAt,
@@ -136,58 +134,13 @@ export default class CommentFetcher {
         return result;
     }
 
-    // private extractComment = (fetchedComments: YoutubeCommentThreadList): FetchedComment[] => {
-    //     return fetchedComments.items.reduce((acc: FetchedComment[], comment) => {
-    //         const replies = (comment.replies?.comments || []).reduce((acc1, reply) => {
-    //             const snippet = reply.snippet
-    //             const originalText = snippet.textOriginal;
-    //             if (!this.containsKorean(originalText)) return acc1;
-    //             const trimmedText = originalText.replace(/[\r\n]+/g, ' ') // 개행 및 콤마를 띄어쓰기로 변환
-    //                                             .replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\[\]\{\}\:\;\"\'\<\>\,\.\?\/\s]/g, '')
-    //                                             .replace(/\s+/g, ' ')
-    //                                             .replace(/(.)\1{2,}/g, (_: any, char: string) => char.repeat(2))
-    //                                             .trim();
-    //             if (trimmedText !== '') acc1.push({
-    //                 id: reply.id,
-    //                 likes: snippet.likeCount,
-    //                 nickname: snippet.authorDisplayName.slice(1),
-    //                 originalText: originalText,
-    //                 trimmedText: trimmedText,
-    //                 profileImage: snippet.authorProfileImageUrl,
-    //                 publishedAt: snippet.publishedAt,
-    //                 isPublic: comment.snippet.isPublic,
-    //             })
-    //             return acc1;
-    //         }, [] as FetchedComment[]);
-    //         acc.push(...replies)
-    //         const snippet = comment.snippet.topLevelComment.snippet;
-    //         const originalText = snippet.textOriginal;
-    //         if (!this.containsKorean(originalText)) return acc;
-    //         const trimmedText = originalText.replace(/[\r\n]+/g, ' ') // 개행 및 콤마를 띄어쓰기로 변환
-    //                                         .replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z0-9\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\[\]\{\}\:\;\"\'\<\>\,\.\?\/\s]/g, '')
-    //                                         .replace(/\s+/g, ' ')
-    //                                         .replace(/(.)\1{2,}/g, (_: any, char: string) => char.repeat(2))
-    //                                         .trim();
-    //         if (trimmedText !== "") acc.push({
-    //             id: comment.id,
-    //             likes: snippet.likeCount,
-    //             nickname: snippet.authorDisplayName.slice(1),
-    //             originalText: originalText,
-    //             trimmedText: trimmedText,
-    //             profileImage: snippet.authorProfileImageUrl,
-    //             publishedAt: snippet.publishedAt,
-    //             isPublic: comment.snippet.isPublic,
-    //         });
-    //         return acc;
-    //     }, [] as FetchedComment[]);
-    // }
-
-    private containsKorean = (text: string) => /[\p{Script=Hangul}]/u.test(text);
-
     private getKoreanRatio = (text: string): number => {
-        const cleanedText = text.replace(/\s/g, '');
-        const koreanText = cleanedText.match(/[가-힣\s]/g);
-        if (!koreanText) return 0;
-        return koreanText.length / cleanedText.length * 100;
+        const cleanedText = text.replace(this.trimRegex, '');
+        const imojis = cleanedText.match(this.imojiRegex);
+        // 이모지가 많은 경우 그냥 원본을 쓰자. 저렇게 병적으로 쓰는 경우는 거의 없다.
+        if (imojis && imojis.length / cleanedText.length * 100 > 40) return 100;
+        const koreans = cleanedText.match(this.koreanRegex);
+        if (!koreans) return 0;
+        return koreans.length / cleanedText.length * 100;
     }
 }

@@ -38,7 +38,7 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
 
-      .video-info span {
+      .video-info > span {
         display: block;
         font-size: 16px;
         margin-bottom: 8px;
@@ -98,7 +98,8 @@
         margin-top: 30px;
       }
       
-      .footer-note span {
+      .footer-note > span {
+        display: inline-block;
         font-weight: bold;
         color: #5bc0de;
       }
@@ -116,63 +117,79 @@
         padding: 2px;
       }
 
-      .alert > a {
+      .link-to-text {
         background-color: skyblue;
         color: black;
-        pointer-events: none;
-        text-decoration: none; /* 링크 스타일 제거 */
         display: inline-block;
-        cursor: default;
+        white-space: nowrap;
+      }
+      
+      .link-to-text > span {
+        display: inline;
+      }
+      
+      .alert {
+        display: block;
+      }
+      
+      .usage > span {
+        display: block;
       }
     </style>
   </head>
   <body>
     <div class="container">
       <p class="warning">※ 본 이메일은 자동으로 작성되었습니다. ※</p>
-      <h1 style="text-align: center;">귀하의 동영상에 스팸 의심 댓글이 달렸습니다.</h1>
+      <h1 style="text-align: center;">귀하의 동영상에 스팸 의심 댓글이 감지되었습니다.</h1>
       
       <div class="video-info">
         <span>제목: <%= video.title %></span>
         <span>비디오 ID: <%= video.id %></span>
         <div style="text-align: center;">
           <span class="alert">
-            이동 버튼을 누르기 전 링크가 확실한지 확인해주세요!
-            링크는 <a href="#" style="cursor: default;">https://studio.youtube.com/video</a>로 시작합니다.
+            이동 버튼을 누르기 전 링크가 확실한지 확인해주세요!<br/>
+            링크는 <span class="link-to-text"><span>https</span><span>://studio.</span><span>youtube.</span>com/video</span>로 시작합니다.
           </span>
           <a href="https://studio.youtube.com/video/<%= video.id %>/edit">스튜디오로 이동하기</a>
           <a href="https://studio.youtube.com/video/<%= video.id %>/comments/inbox">댓글 관리로 이동하기</a>
         </div>
-        <div style="text-align: center;">
+        <div style="text-align: center;" class="usage">
           <img style="padding: 10px;" src="https://i.imgur.com/FOHAkV8.png"/>
           <span>검색은 문장에서 일부만 검색하면 됩니다!</span>
         </div>
-
       </div>
       
       <div style="text-align: center; color: #333;">
-        <p>현재 스팸성이 높은 데이터를 추출하여 학습시키고 있으나, 한국어의 특성으로 인해 제대로 걸러지지 않는 경우가 많습니다.</p>
-        <p>또한, 한국어 모델로 학습하여 한국어 이외의 언어는 스팸으로 처리할 가능성이 높습니다.</p>
+        <p>현재 스팸성이 높은 데이터를 추출하여 학습시키고 토큰을 적절히 나누고 있습니다.</p>
+        <p>하지만 한국어의 특성으로 인해 제대로 걸러지지 않는 경우가 많습니다.</p>
         <p>아래의 댓글들은 스팸 댓글일 가능성이 높습니다. 판단 후 삭제 바랍니다.</p>
+        <p>추론 확률이 궁금하다면 닉네임, 댓글에 마우스를 올려보세요!</p>
       </div>
       
       <ul class="comment-list">
         <% comments.forEach(comment => { %>
-            <li class="comment-item">
-                <img src="<%= comment.profileImage %>" alt="Profile Image" width="50" height="50">
-                <div>
-                    <strong class="<%= comment.nickname_p == '(스팸)' ? 'spam' : '' %>">
-                        <%= comment.nickname %>
-                    </strong>
-                    <p class="<%= comment.comment_p == '(스팸)' ? 'spam' : '' %>">
-                        <%= comment.comment %>
-                    </p>
-                </div>
-            </li>
+          <li class="comment-item">
+            <img src="<%= comment.profileImage %>" alt="Profile Image" width="50" height="50">
+            <div style="width: 100%">
+              <strong class="<%= comment.nickname_predicted == '스팸' ? 'spam' : '' %>"
+                title="<%= comment.nickname_prob %>"  
+              >
+                <%= comment.nickname %>
+              </strong>
+              <p class="<%= comment.comment_predicted == '스팸' ? 'spam' : '' %>"
+                title="<%= comment.comment_prob %>"  
+              >
+                <%= comment.comment %>
+              </p>
+            </div>
+          </li>
         <% }) %>
       </ul>
       
-      <p class="footer-note">※ 스팸 데이터를 거르는 정확도가 높아지면 메일로 알려주는 대신 실제 서비스로 대체될 예정입니다. ※</p>
-      <p class="footer-note">※ 관심이 있다면 회신 바랍니다. ※</p>
+      <p class="footer-note">
+        <span>※ 스팸 데이터를 거르는 정확도가 높아지면 메일로 알려주는 대신 웹 서비스로 대체될 예정입니다. 관심이 있다면 회신 바랍니다. ※</span>
+        <span>※ 만약, 귀하의 영상이 아니라면 회신 바랍니다. ※</span>
+      </p>
     </div>
   </body>
 </html>

@@ -16,3 +16,10 @@ mailerService.sendMail('gkstkdgus821@naver.com', {
     },
     comments: []
 })
+mailerService.sendMail('gkstkdgus821@gmail.com', {
+    video: {
+        id: "1234",
+        title: "1234",
+    },
+    comments: []
+})

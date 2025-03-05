@@ -57,4 +57,25 @@ YOUTUBE_DATA_API_KEY=${{ YOUTUBE DATA API KEY }} <- 발급받아서 넣어주세
 MAILER_USER=${{ mail account }}
 MAILER_PASS=${{ mail password }}
 SERVER_URL=${{ ml server root url. e.g.) http://localhost:5000 }}
+GOOGLE_APPLICATION_CREDENTIALS={{ gcp credential.json이 저장된 경로}}
+GOOGLE_PROJECT_ID={{ google gcp project id}}
+```
+
+## yt-dlp의 사용
+
+동영상이 shorts인지 판단하기 위해 외부 프로그램인 yt-dlp를 사용합니다.
+
+```
+sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
+
+이후 `yt-dlp -F {{ 영상 주소 || 동영상 id }}`를 입력하면 동영상 정보가 출력됩니다.
+
+```
+// 일반적인 동영상의 레이아웃 - 대부분 16:9 이상
+303     webm  1920x1080   60    │  281.25MiB 2878k https │ vp9           2878k video only          1080p60, webm_dash
+
+// 쇼츠 형식의 레이아웃 - 대부분 9:16 비율
+616     mp4   1080x1920   30    │ ~ 24.47MiB 5703k m3u8  │ vp09.00.40.08 5703k video only          Premium
 ```

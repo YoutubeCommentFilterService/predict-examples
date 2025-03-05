@@ -14,7 +14,7 @@ export default class MailerService {
             auth: {
                 user: process.env.MAILER_USER,
                 pass: process.env.MAILER_PASS,
-            }
+            },
         })
         this.templatePath = "../static/spam-comment-email-template.ejs";
     }
@@ -24,19 +24,24 @@ export default class MailerService {
     }
 
     sendMail = async (to: string, data: SendMailData): Promise<void> => {
-        if (data.comments.length === 0) {
-            console.log('스팸이 감지되지 않았습니다')
-            return;
-        }
+        // if (data.comments.length === 0) {
+        //     console.log('스팸이 감지되지 않았습니다')
+        //     return;
+        // }
 
         try {
-            const title = `귀하의 → ${this.truncateString(data.video.title, 20)} ← 동영상에 스팸 의심 댓글이 감지되었습니다.`
+            const title = `${this.truncateString(data.video.title, 20)} 영상에 의심스러운 댓글이 감지되었습니다.`
             const template = await this.renderTemplate(data)
             const mailOptions = {
-                from: process.env.EMAIL_USER,
+                from: process.env.MAILER_USER,
                 to,
                 subject: title,
-                html: template
+                html: template,
+                headers: {
+                    'X-Mailer': 'Nodemailer',
+                    'X-Priority': '3',
+                    'Precedence': 'bulk'
+                },
             }
 
             const info = await this.transporter.sendMail(mailOptions);

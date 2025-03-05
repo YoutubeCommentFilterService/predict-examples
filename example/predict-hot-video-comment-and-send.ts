@@ -52,7 +52,6 @@ const commentFetcher = new Services.CommentFetcher();
 const commentPredictor = new Services.CommentPredictor();
 const mailerService = new Services.MailerService();
 
-const videoFetchProcessLimit = pLimit(1)
 
 // 댓글을 가져오지 않을 것들 설정 - 실급동에서만 제거하면 무방할거같긴 한데... 모르겠고 전체로 실행
 const notFetchFilter: {categoryId: (number | string)[], title: string[]} = {
@@ -72,6 +71,7 @@ const notFetchFilter: {categoryId: (number | string)[], title: string[]} = {
 // 28 // 과학기술		- 100		=> 2
 const categories: (number | string)[] = [0, 15, 20, 22, 23, 26, 28]
 
+const videoFetchProcessLimit = pLimit(categories.length)
 console.time('fetch - promise')
 let fetchedVideosList: FetchedVideo[] = (await Promise.all(
     categories.map(categoryId => videoFetchProcessLimit(() => videoFetcher.fetchVideoByCategoryId(categoryId, 50, false, 1, notFetchFilter)))
@@ -134,7 +134,6 @@ if (flag === 'sync') {
             comments: predictedAsSpam
         }
         await mailerService.sendMail(email, mailData);
-        // await mailerService.sendMail('gkstkdgus821@gmail.com', mailData);
         const beforeSpamFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
         const sentSpamFile = `${appRootPath}/predicts-sent/${video.id}.spam.txt`;
         if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {
@@ -182,7 +181,6 @@ if (flag === 'sync') {
                 comments: predictedAsSpam
             }
             await mailerService.sendMail(email, mailData);
-            // await mailerService.sendMail('gkstkdgus821@gmail.com', mailData);
             const beforeSpamFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
             const sentSpamFile = `${appRootPath}/predicts-sent/${video.id}.spam.txt`;
             if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {

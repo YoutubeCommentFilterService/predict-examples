@@ -175,7 +175,8 @@ dist
 .DS_Store
 
 
-predicts*
-not-spam
-datas
-email-not-found
+predicts*/
+not-spam/
+datas/
+email-not-found/
+env/

@@ -15,7 +15,7 @@ export default class CommentFetcher {
         if (!this.youtubeDataKey) return;
     }
 
-    fetchCommentsByVideoId = async (videoId: string, maxResults: number = 100, lastSearchTime: string | undefined = '1970-01-01T00:00:00Z'): Promise<{ comments: ExtractedComment[], lastSearchTime: string }> => {
+    fetchCommentsByVideoId = async (videoId: string, videoOwnerId: string, maxResults: number = 100, lastSearchTime: string | undefined = '1970-01-01T00:00:00Z'): Promise<{ comments: ExtractedComment[], lastSearchTime: string }> => {
         if (maxResults <= 0) maxResults = 0
         else if (maxResults > 100) maxResults = 100
 
@@ -31,11 +31,11 @@ export default class CommentFetcher {
                 nextPageToken = data.nextPageToken;
                 for (let topLevelComment of data.items) {
                     const extractedTopLevelComment = await this.extractComment(topLevelComment.snippet.topLevelComment);
-                    extractedTopLevelComment && comments.push(extractedTopLevelComment);
+                    extractedTopLevelComment.authorId !== videoOwnerId && comments.push(extractedTopLevelComment);
                     
                     const results = topLevelComment.snippet.totalReplyCount <= 5
-                                        ? await this.fetchSubCommentsByParent(topLevelComment)
-                                        : await this.fetchSubCommentById(topLevelComment.id, maxResults)
+                                        ? await this.fetchSubCommentsByParent(topLevelComment, videoOwnerId)
+                                        : await this.fetchSubCommentById(topLevelComment.id, maxResults, videoOwnerId)
                     comments.push(...results)
                 }
             } catch (err) {
@@ -74,7 +74,7 @@ export default class CommentFetcher {
         return response.data;
     }
 
-    private fetchSubCommentById = async (parentId: string, maxResults: number): Promise<ExtractedComment[]> => {
+    private fetchSubCommentById = async (parentId: string, maxResults: number, videoOwnerId: string): Promise<ExtractedComment[]> => {
         if (maxResults < 0) maxResults = 0;
         if (maxResults > 100) maxResults = 100;
 
@@ -94,8 +94,8 @@ export default class CommentFetcher {
                 const data = response.data;
                 nextPageToken = data.nextPageToken;
 
-                const result = await this.extractComments(data.items);
-                subComments.push(...result)
+                const replies = await this.extractComments(data.items, videoOwnerId, parentId);
+                subComments.push(...replies)
             } catch (err) {
                 if (axios.isAxiosError(err)) console.error(err.response?.data);
                 else console.error(err)
@@ -105,32 +105,35 @@ export default class CommentFetcher {
         return subComments;
     }
 
-    private fetchSubCommentsByParent = async (parentComment: YoutubeCommentThread) => {
+    private fetchSubCommentsByParent = async (parentComment: YoutubeCommentThread, videoOwnerId: string) => {
         const replies = parentComment.replies?.comments || [];
-        return await this.extractComments(replies);
+        return await this.extractComments(replies, videoOwnerId, parentComment.id);
     }
 
-    private extractComments = async (replies: YoutubeComment[]): Promise<ExtractedComment[]> => {
+    private extractComments = async (replies: YoutubeComment[], videoOwnerId: string, parentCommentId: string): Promise<ExtractedComment[]> => {
         const extractedReplies: ExtractedComment[] = [];
         for (let reply of replies) {
-            const result = await this.extractComment(reply);
-            if (result) extractedReplies.push(result);
+            if (reply.snippet.authorChannelId?.value === videoOwnerId) continue
+            const result = await this.extractComment(reply, parentCommentId);
+            extractedReplies.push(result);
         }
         return extractedReplies;
     }
 
-    private extractComment = async (comment: YoutubeComment): Promise<ExtractedComment | undefined> => {
+    private extractComment = async (comment: YoutubeComment, parentCommentId?: string): Promise<ExtractedComment> => {
         const originalText = comment.snippet.textOriginal;
         const result = {
-            id: comment.id,
+            id: parentCommentId ? comment.id.split('.')[1] : comment.id,
             likes: comment.snippet.likeCount,
+            authorId: comment.snippet.authorChannelId?.value,
             nickname: comment.snippet.authorDisplayName,
             originalText: originalText,
             translatedText: originalText,    // 원래는 translatedText로 하면 안되긴 하지만, 일관성을 위해 사용
             profileImage: comment.snippet.authorProfileImageUrl,
             publishedAt: comment.snippet.publishedAt,
             updatedAt: comment.snippet.updatedAt,
-        };
+            parentId: parentCommentId || "",
+        } as ExtractedComment;
         return result;
     }
 

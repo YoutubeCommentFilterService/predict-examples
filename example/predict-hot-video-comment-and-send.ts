@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { Services, seperator, resizeStr } from '../modules';
 import fs from 'fs';
-import type { ChannelInfo, FetchedVideo, SendMailData } from '../types';
+import type { FetchedVideo, MailDataTree, SendMailData, SendMailDataV2, SpamContent } from '../types';
 import appRootPath from 'app-root-path';
 import pLimit from 'p-limit'
 
@@ -12,7 +12,7 @@ if (process.argv.length !== 3) {
     console.warn('if argv[2] is not provided, "async" process is default')
     flag = 'async'
 }
-if (!['sync', 'async'].includes(process.argv[2])) {
+else if (!['sync', 'async'].includes(process.argv[2])) {
     console.error('parameter is "async" or "sync"')
     process.exit(-1)
 }
@@ -90,107 +90,125 @@ fs.writeFileSync(toSearchEmailTxt, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
 })
 
 // 동영상의 댓글 가져오고 추론하기
-const predictedVideoFormat: string[] = []
-const predictDebugFlag = false
+const predictedVideoFormat: {[key: string]: {baseTime: string, title: string}} = {}
 
+const generateMailData = (videoInfo: FetchedVideo, spamContent: SpamContent[]): SendMailData => {
+    return {
+        video: {
+            id: videoInfo.id,
+            title: videoInfo.title,
+            thumbnail: videoInfo.thumbnail
+        }, 
+        comments: spamContent
+    }
+}
+
+const generateMailDataV2 = (videoInfo: FetchedVideo, spamComments: SpamContent[]): SendMailDataV2 => {
+    const printMailDataV2Tree = (mailData: MailDataTree) => {
+        Object.entries(mailData).forEach(([key, val]) => {
+            const {root, items} = val;
+            console.log(root.id, root.comment.replace(/\r/g, '').replace(/\n/g, ' '))
+            items.forEach(item => {
+                console.log('\t', item.id, item.parentId, item.comment.replace(/\r/g, '').replace(/\n/g, ' '))
+            })
+        })
+    }
+    spamComments.sort((a, b) => a.parentId.length - b.parentId.length)
+    const mailDataTree: MailDataTree = {}
+    const parentIds: string[] = [...new Set(spamComments.map(spamComment => spamComment.id.startsWith('U') ? spamComment.id : '').filter(id => id !== ''))]
+    spamComments.forEach(data => {
+        if (data.parentId === '') {
+            mailDataTree[data.id] = {
+                root: data,
+                items: []
+            }
+        } else {
+            if (parentIds.includes(data.parentId)) {
+                mailDataTree[data.parentId].items.push(data)
+            } else {
+                mailDataTree[data.id] = {
+                    root: data,
+                    items: []
+                }
+            }
+        }
+    })
+    // printMailDataV2Tree(mailDataTree);
+    return {
+        video: {
+            id: videoInfo.id,
+            title: videoInfo.title,
+            thumbnail: videoInfo.thumbnail,
+        },
+        comments: mailDataTree
+    }
+}
+
+const predictCommentFunc = async (index: number, video: FetchedVideo, predictDebugFlag: boolean) => {
+    const { id: videoId, title: videoTitle, channelId } = video
+    console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch ${videoId}'s comment - ${videoTitle}(${video.categoryId})`)
+
+    const fetchCommentsStart = performance.now()
+    let {comments, lastSearchTime} = await commentFetcher.fetchCommentsByVideoId(videoId, video.channelId, 100, alreadyPredictedVideo[videoId]?.baseTime);
+    const fetchCommentsEnd = performance.now() - fetchCommentsStart
+
+    predictedVideoFormat[videoId] = {
+        baseTime: lastSearchTime,
+        title: videoTitle,
+    }
+    comments = comments.filter(comment => getKoreanRatio(comment.translatedText) > 20 && comment.translatedText.length > 4)
+    if (comments.length === 0) return; // 403, 즉 동영상이 댓글을 닫은 경우
+                                         // 400, 즉 동영상에 댓글이 없는 경우(거의 없긴 하다)
+
+    const predictCommentsStart = performance.now()
+    const predictedAsSpam = await commentPredictor.predictComment(comments, videoId, predictDebugFlag);
+    const predictCommentsEnd = performance.now() - predictCommentsStart
+
+    console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
+    if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
+
+    // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
+    const email = mailDB.getEmail(channelId);
+    if (!email) {
+        const originalPredictedFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
+        const noEmailPredictedFile = `${appRootPath}/email-not-found/${channelId}.${videoId}.spam.txt`;
+        if (fs.existsSync(originalPredictedFile)) fs.rename(originalPredictedFile, noEmailPredictedFile, (err) => {
+            if (err) console.error(err)
+        });
+        return
+    }
+    // 메일 보내기
+    const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
+    await mailerService.sendMail(email, mailDataV2, 'v2');
+    const beforeSpamFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
+    const sentSpamFile = `${appRootPath}/predicts-sent/${videoId}.spam.txt`;
+    if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {
+        if (err) console.error(err)
+    });
+}
+
+
+const predictDebugFlag = false
 const totalPredictStart = performance.now()
 
 flag = flag || process.argv[2]
 if (flag === 'sync') {
     for (let [index, video] of fetchedVideosSet.entries()) {
-        console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch ${video.id}'s comment - ${video.title}(${video.categoryId})`)
-        const fetchCommentsStart = performance.now()
-        let {comments, lastSearchTime} = await commentFetcher.fetchCommentsByVideoId(video.id, 100, alreadyPredictedVideo[video.id]?.baseTime);
-        const fetchCommentsEnd = performance.now() - fetchCommentsStart
-        predictedVideoFormat.push(`${lastSearchTime}${seperator}${video.id}${seperator}${video.title}`)
-        comments = comments.filter(comment => getKoreanRatio(comment.translatedText) > 20 && comment.translatedText.length > 4)
-    
-        if (comments.length === 0) continue; // 403, 즉 동영상이 댓글을 닫은 경우
-                                             // 400, 즉 동영상에 댓글이 없는 경우(거의 없긴 하다)
-    
-        const predictCommentsStart = performance.now()
-        const predictedAsSpam = await commentPredictor.predictComment(comments, video.id, predictDebugFlag);
-        const predictCommentsEnd = performance.now() - predictCommentsStart
-    
-        console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
-    
-        if (predictedAsSpam.length === 0) continue; // 스팸으로 판명된 것이 없음
-        // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
-        const email = mailDB.getEmail(video.channelId);
-        if (!email) {
-            const originalPredictedFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
-            const noEmailPredictedFile = `${appRootPath}/email-not-found/${video.channelId}.${video.id}.spam.txt`;
-            if (fs.existsSync(originalPredictedFile)) fs.rename(originalPredictedFile, noEmailPredictedFile, (err) => {
-                if (err) console.error(err)
-            });
-            continue
-        }
-        // 메일 보내기
-        const mailData: SendMailData = {
-            video: {
-                id: video.id,
-                title: video.title,
-            },
-            comments: predictedAsSpam
-        }
-        await mailerService.sendMail(email, mailData);
-        const beforeSpamFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
-        const sentSpamFile = `${appRootPath}/predicts-sent/${video.id}.spam.txt`;
-        if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {
-            if (err) console.error(err)
-        });
+        await predictCommentFunc(index, video, predictDebugFlag)
     }
 } else if (process.argv[2] === 'async') {
     const predictCommentProcessLimit = pLimit(5) // 10 이상부터는 크게 차이가 없고, 5로도 충분하다.
 
-    const predictCommentPromises = fetchedVideosSet.map((video, index) => {
-        return predictCommentProcessLimit(async () => {
-            console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch ${video.id}'s comment - ${video.title}(${video.categoryId})`)
-            const fetchCommentsStart = performance.now()
-            let {comments, lastSearchTime} = await commentFetcher.fetchCommentsByVideoId(video.id, 100, alreadyPredictedVideo[video.id]?.baseTime);
-            const fetchCommentsEnd = performance.now() - fetchCommentsStart
-            predictedVideoFormat.push(`${lastSearchTime}${seperator}${video.id}${seperator}${video.title}`)
-            comments = comments.filter(comment => getKoreanRatio(comment.translatedText) > 20 && comment.translatedText.length > 4)
-        
-            if (comments.length === 0) return; // 403, 즉 동영상이 댓글을 닫은 경우
-                                                 // 400, 즉 동영상에 댓글이 없는 경우(거의 없긴 하다)
-        
-            const predictCommentsStart = performance.now()
-            const predictedAsSpam = await commentPredictor.predictComment(comments, video.id, predictDebugFlag);
-            const predictCommentsEnd = performance.now() - predictCommentsStart
-        
-            console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
-        
-            if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
-            // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
-            const email = mailDB.getEmail(video.channelId);
-            if (!email) {
-                const originalPredictedFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
-                const noEmailPredictedFile = `${appRootPath}/email-not-found/${video.channelId}.${video.id}.spam.txt`;
-                if (fs.existsSync(originalPredictedFile)) fs.rename(originalPredictedFile, noEmailPredictedFile, (err) => {
-                    if (err) console.error(err)
-                });
-                return
-            }
-            // 메일 보내기
-            const mailData: SendMailData = {
-                video: {
-                    id: video.id,
-                    title: video.title,
-                },
-                comments: predictedAsSpam
-            }
-            await mailerService.sendMail(email, mailData);
-            const beforeSpamFile = `${appRootPath}/predicts/${video.id}.spam.txt`;
-            const sentSpamFile = `${appRootPath}/predicts-sent/${video.id}.spam.txt`;
-            if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {
-                if (err) console.error(err)
-            });
-        })
-    })
+    const predictCommentPromises = fetchedVideosSet.map((video, index) =>
+        predictCommentProcessLimit(() => predictCommentFunc(index, video, predictDebugFlag))
+    )
     
     await Promise.all(predictCommentPromises)
 }
 console.log(`predict total ${Math.floor(performance.now() - totalPredictStart) / 1000}s`)
 
-fs.writeFileSync(alreadyPredictedVideoDB, predictedVideoFormat.join('\n'), 'utf-8')
+// 이미 추론한 것들을 저장해야할까? 삭제 안했을수도 있지 않을까?
+Object.assign(alreadyPredictedVideo, predictedVideoFormat);
+const writeData = Object.entries(alreadyPredictedVideo)
+    .map(([key, val]) => `${val.baseTime}${seperator}${key}${seperator}${val.title}`)
+fs.writeFileSync(alreadyPredictedVideoDB, writeData.join('\n'), 'utf-8')

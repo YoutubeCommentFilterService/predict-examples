@@ -65,12 +65,14 @@ export interface SpamResult {
 export interface ExtractedComment {
     id: string;
     likes: number;
+    authorId: string;
     nickname: string;
     profileImage: string;
     originalText: string;
     translatedText: string;
     publishedAt: string;
     updatedAt: string;
+    parentId: string;
 }
 
 export interface PredictResponse {
@@ -92,16 +94,19 @@ export interface SendMailData {
     video: {
         id: string;
         title: string;
+        thumbnail: string;
     };
     comments: SpamContent[];
 }
 
 export interface SpamContent extends SpamResult {
     profileImage: string;
-    nickname_predicted: string;
-    nickname_prob: string;
-    comment_predicted: string;
-    comment_prob: string;
+    nicknamePredicted: string;
+    nicknameProb: string;
+    commentPredicted: string;
+    commentProb: string;
+    parentId: string;
+    updatedAt: string;
 }
 
 export interface YoutubeVideoList extends YoutubeCommonField, YoutubeCommonPagenation {
@@ -209,4 +214,20 @@ export interface ChannelInfo {
     id: string;
     playlistId: string;
     handler: string;
+}
+
+export interface MailDataTree {
+    [key: string]: {
+        root: SpamContent,
+        items: SpamContent[],
+    }
+}
+
+export interface SendMailDataV2 {
+    video: {
+        id: string;
+        title: string;
+        thumbnail: string;
+    };
+    comments: MailDataTree;
 }

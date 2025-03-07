@@ -2,11 +2,14 @@
   <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333;">
     <div style="width: 80%; max-width: 1200px; margin: 20px auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
       <p style="text-align: center; margin-top: 20px; font-size: 14px; color: #34495e;">※ 본 이메일은 자동으로 작성되었습니다. ※</p>
-      <p style="text-align: center; margin-top: 20px; font-size: 14px; color: #34495e;">※ 특정 카테고리의 인기 급상승 동영상에 올라가고 스팸이 달리면 알려드리는 서비스입니다. 스팸으로 되었다면 스팸 차단해주시기 바랍니다. ※</p>
+      <p style="text-align: center; margin-top: 20px; font-size: 14px; color: #34495e;">※ 특정 카테고리의 인기 급상승 동영상에 올라가고 스팸이 달리면 알려드리는 서비스입니다. 스팸으로 되었다면 스팸 차단 해제 바랍니다. ※</p>
       <h1 style="font-size: 24px; margin-bottom: 10px; text-align: center; color: #2980b9;">귀하의 동영상에 스팸 의심 댓글이 감지되었습니다.</h1>
       <div style="background-color: #fdfdfd; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-        <span style="display: block; font-size: 16px; margin-bottom: 8px;">제목: <%= video.title %></span>
-        <span style="display: block; font-size: 16px; margin-bottom: 8px;">비디오 ID: <%= video.id %></span>
+        <div style="display:flex; align-items:center; flex-direction: column;">
+          <img src="<%= video.thumbnail %>">
+          <span style="display: block; font-size: 16px; margin-bottom: 8px;"><%= video.title %></span>
+        </div>
+
         <div style="text-align: center;">
           <span style="display: block; margin-top: 15px; font-size: 16px; color: #d32f2f; font-weight: bold; padding: 10px; background-color: #ffebee; border-radius: 6px;">이동 버튼을 누르기 전 링크가 확실한지 꼭 확인해주세요!<br/>링크는 <span style="background-color: #e0f7fa; font-weight: bold; padding: 3px 6px; border-radius: 4px; color: #00796b;"><span>https</span><span>://studio.</span><span>youtube.</span><span>com/video</span></span>로 시작합니다.</span>
           <a href="https://studio.youtube.com/video/<%= video.id %>/edit" style="margin-top: 15px; display: inline-block; background-color: #0288d1; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">스튜디오로 이동하기</a>
@@ -22,26 +25,15 @@
         <p>하지만 한국어의 특성으로 인해 제대로 걸러지지 않는 경우가 많습니다.</p>
         <p>아래의 댓글들은 스팸 댓글일 가능성이 높습니다. 판단 후 삭제 바랍니다.</p>
         <p>추론 확률이 궁금하다면 닉네임, 댓글에 마우스를 올려보세요!</p>
+        <% if (version != 'v1') { %>
+        <p>최상위 댓글 하나만 삭제해도 하위 댓글들이 삭제됩니다!</p> 
+        <% } %>
       </div>
-      <ul style="list-style: none; padding: 0;">
-        <% comments.forEach(comment => { %>
-          <li style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
-            <img src="<%= comment.profileImage %>" alt="Profile Image" width="50" height="50" style="border-radius: 50%; margin-right: 15px;">
-            <div style="width: 100%">
-              <strong style="font-weight: bold; margin-right: 5px; <%= comment.nickname_predicted == '스팸' ? 'color: white; background-color: #e53935; padding: 2px;' : '' %>" title="<%= comment.nickname_prob %>">
-                <%= comment.nickname %>
-              </strong>
-              <p style="margin: 0; font-size: 14px; <%= comment.comment_predicted == '스팸' ? 'color: white; background-color: #e53935; padding: 2px;' : 'color: #555;' %>" title="<%= comment.comment_prob %>">
-                <%= comment.comment %>
-              </p>
-            </div>
-          </li>
-        <% }) %>
-      </ul>
+      <%- partialBodyTemplate %>
       <p style="font-size: 14px; text-align: center; color: #000; margin-top: 30px;">
         <span style="display: inline-block; font-weight: bold;">※ 스팸 데이터를 거르는 정확도가 높아지면 메일로 알려주는 대신 웹 서비스로 대체될 예정입니다. 관심이 있다면 회신 바랍니다. ※</span><br/>
         <span style="display: inline-block; font-weight: bold;">※ 웹에서는 체크 버튼을 통해 한번에 삭제할 수 있도록 할 예정입니다. ※</span><br/>
-        <span style="display: inline-block; font-weight: bold;">※ 만약, 귀하의 영상이 아니라면 회신 바랍니다. ※</span>
+        <span style="display: inline-block; font-weight: bold;">※ 만약, 귀하의 영상이 아니라면 회신 바랍니다. 또한 받는 다른 이메일 주소가 있다면 이메일 주소를 회신 바랍니다. ※</span>
       </p>
     </div>
   </body>

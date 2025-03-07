@@ -1,0 +1,18 @@
+<ul style="list-style: none; padding: 0;">
+  <% comments.forEach(comment => { %>
+    <li style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+      <img src="<%= comment.profileImage %>" alt="Profile Image" width="50" height="50" style="border-radius: 50%; margin-right: 15px;">
+      <div style="width: 100%">
+        <strong style="font-weight: bold; margin-right: 5px; <%= comment.nicknamePredicted == '스팸' ? 'color: white; background-color: #e53935; padding: 2px;' : '' %>" title="<%= comment.nicknameProb %>">
+          <%= comment.nickname %>
+        </strong>
+        <p style="margin: 0; font-size: 14px; <%= comment.commentPredicted == '스팸' ? 'color: white; background-color: #e53935; padding: 2px;' : 'color: #555;' %>" title="<%= comment.commentProb %>">
+          <%= comment.comment %>
+        </p>        
+        <p style="margin: 0; font-size: 14px; color: #555; margin-left: auto; text-align: right;">
+          <%= comment.updatedAt %>
+        </p>
+      </div>
+    </li>
+  <% }) %>
+</ul>

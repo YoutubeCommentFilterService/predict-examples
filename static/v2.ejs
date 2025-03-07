@@ -1,0 +1,51 @@
+<ul style="list-style: none; padding: 0; margin: 0;">
+    <% Object.values(comments).forEach(value => { 
+         const { root, items } = value;
+    %>
+      <li style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ddd;">
+        <!-- 상위 댓글 -->
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+          <img src="<%= root.profileImage %>" alt="Profile Image" width="50" height="50" style="border-radius: 50%; margin-right: 15px;">
+          <div style="width: 100%;">
+            <strong style="font-weight: bold; margin-right: 5px; <%= root.nicknamePredicted === '스팸' ? ' color: white; background-color: #e53935; padding: 2px;' : '' %>" title="<%= root.nicknameProb %>">
+              <%= root.nickname %>
+            </strong>
+            <p style="margin: 0; font-size: 14px; <%= root.commentPredicted === '스팸' ? ' color: white; background-color: #e53935; padding: 2px;' : ' color: #555;' %>" title="<%= root.commentProb %>">
+              <%= root.comment %>
+            </p>           
+            <p style="margin: 0; font-size: 14px; color: #555; margin-left: auto; text-align: right;">
+                <%= root.updatedAt %>
+            </p>
+          </div>
+        </div>
+  
+        <!-- 하위 댓글들 -->
+        <% if (items.length > 0) { %>
+        <div style="margin-left: 65px; border-left: 2px solid #eee; padding-left: 15px;">
+            <details>
+                <summary style="cursor: pointer; font-weight: bold; margin-bottom: 10px;"> 답글 <%= items.length %>개</summary>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <% items.forEach(item => { %>
+                    <li style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <img src="<%= item.profileImage %>" alt="Profile Image" width="40" height="40" style="border-radius: 50%; margin-right: 10px;">
+                        <div style="width: 100%;">
+                            <strong style="font-weight: bold; margin-right: 5px; <%= item.nicknamePredicted === '스팸' ? ' color: white; background-color: #e53935; padding: 2px;' : '' %>" title="<%= item.nicknameProb %>">
+                                <%= item.nickname %>
+                            </strong>
+                            <p style="margin: 0; font-size: 14px; <%= item.commentPredicted === '스팸' ? ' color: white; background-color: #e53935; padding: 2px;' : ' color: #555;' %>" title="<%= item.commentProb %>">
+                                <%= item.comment %>
+                            </p>
+                            <p style="margin: 0; font-size: 14px; color: #555; margin-left: auto; text-align: right;">
+                                <%= item.updatedAt %>
+                            </p>
+                        </div>
+                    </li>
+                    <% }) %>
+                </ul>
+            </details>
+        </div>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+  

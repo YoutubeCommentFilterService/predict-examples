@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
 import ChannelInfoFetcher from '../modules/channel-info-fetcher';
+import appRootPath from 'app-root-path';
 
-dotenv.config({path: '../.env'})
+dotenv.config({ path: `${appRootPath}/env/.env` })
 
 const channelInfoFetcher = new ChannelInfoFetcher();
 

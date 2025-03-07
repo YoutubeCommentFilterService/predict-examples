@@ -1,15 +1,10 @@
 import dotenv from 'dotenv';
 import VideoFetcher from '../modules/video-fetcher';
-import CommentFetcher from '../modules/comment-fetcher';
-import CommentPredictor from '../modules/comment-predictor';
-import MailerService from '../modules/mailer-service';
+import appRootPath from 'app-root-path';
 
-dotenv.config({path: '../.env'});
+dotenv.config({ path: `${appRootPath}/env/.env` })
 
 const videoFetcher = new VideoFetcher()
-const commentFetcher = new CommentFetcher();
-const commentPredicter = new CommentPredictor();
-const mailerService = new MailerService();
 
 const categories = await videoFetcher.fetchCategories()
 

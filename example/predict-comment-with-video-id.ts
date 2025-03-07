@@ -22,7 +22,7 @@ const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
 const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').trim().split('\n')
 
 for (let videoId of videoIds) {
-    const { comments: fetchedComments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId);
+    const { comments: fetchedComments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId, '');
     console.time("Execution Time")
     const predicted = await commentPredictor.predictComment(fetchedComments, videoId);
     console.timeEnd("Execution Time")

@@ -1,11 +1,8 @@
-import ejs from 'ejs';
-import fs, { fdatasync } from 'fs';
-import axios from 'axios';
 import dotenv from 'dotenv';
-import type { SendMailData, SpamContent } from '../types';
 import MailerService from '../modules/mailer-service';
+import appRootPath from 'app-root-path';
 
-dotenv.config({ path: '../.env' })
+dotenv.config({ path: `${appRootPath}/env/.env` })
 
 const mailerService = new MailerService()
 

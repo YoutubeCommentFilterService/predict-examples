@@ -11,12 +11,28 @@ export default class MailerService {
         v2: `${appRootPath}/static/v2.ejs`
     }
     constructor() {
+        let options = {}
+        if (process.env.MAILER_SERVICE === 'gmail') {
+            options = { service: process.env.MAILER_SERVICE }
+        } else {
+            options = {
+                host: process.env.MAILER_SERVICE,
+                port: 587,
+                secure: false,
+            }
+        }
+        // console.log(options, {
+        //     user: process.env.MAILER_USER,
+        //     pass: process.env.MAILER_PASS,
+        // })
         this.transporter = nodemailer.createTransport({
-            service: 'gmail',
+            ...options,
             auth: {
                 user: process.env.MAILER_USER,
                 pass: process.env.MAILER_PASS,
             },
+            // logger: true,
+            // debug: true
         })
     }
 
@@ -33,7 +49,8 @@ export default class MailerService {
             'X-Mailer': 'Nodemailer',
             'X-Priority': '3',
             'Precedence': 'bulk'
-        }
+        },
+        encoding: 'utf-8',
     })
 
     sendMail = async (to: string, data: any, version: string = 'v1'): Promise<void> => {

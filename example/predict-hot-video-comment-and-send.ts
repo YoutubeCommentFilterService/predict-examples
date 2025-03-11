@@ -5,7 +5,7 @@ import type { FetchedVideo, MailDataTree, SendMailData, SendMailDataV2, SpamCont
 import appRootPath from 'app-root-path';
 import pLimit from 'p-limit'
 
-dotenv.config({ path: `${appRootPath}/.env` })
+dotenv.config({ path: `${appRootPath}/env/.env` })
 
 let flag
 if (process.argv.length !== 3) {
@@ -196,7 +196,7 @@ if (flag === 'sync') {
     for (let [index, video] of fetchedVideosSet.entries()) {
         await predictCommentFunc(index, video, predictDebugFlag)
     }
-} else if (process.argv[2] === 'async') {
+} else if (flag === 'async') {
     const predictCommentProcessLimit = pLimit(5) // 10 이상부터는 크게 차이가 없고, 5로도 충분하다.
 
     const predictCommentPromises = fetchedVideosSet.map((video, index) =>

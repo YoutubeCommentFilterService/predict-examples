@@ -4,8 +4,18 @@ import fs from 'fs';
 import type { FetchedVideo, MailDataTree, SendMailData, SendMailDataV2, SpamContent } from '../types';
 import appRootPath from 'app-root-path';
 import pLimit from 'p-limit'
+import axios from 'axios';
 
 dotenv.config({ path: `${appRootPath}/env/.env` })
+
+try {
+    await axios.get(`${process.env.PREDICT_SERVER_URL}/status`, {
+        timeout: 1000,
+    });
+} catch (err) {
+    console.error('server not connected', )
+    process.exit(-1)
+}
 
 let flag
 if (process.argv.length !== 3) {
@@ -72,9 +82,11 @@ const notFetchFilter: {categoryId: (number | string)[], title: string[]} = {
 const categories: (number | string)[] = [0, 15, 20, 22, 23, 26, 28]
 
 const videoFetchProcessLimit = pLimit(categories.length)
+const dateDiff = 1;
+const includeShortsVideo = false;
 console.time('fetch - promise')
 let fetchedVideosList: FetchedVideo[] = (await Promise.all(
-    categories.map(categoryId => videoFetchProcessLimit(() => videoFetcher.fetchVideoByCategoryId(categoryId, 50, false, 1, notFetchFilter)))
+    categories.map(categoryId => videoFetchProcessLimit(() => videoFetcher.fetchVideoByCategoryId(categoryId, 50, includeShortsVideo, dateDiff, notFetchFilter)))
 )).flat();
 console.timeEnd('fetch - promise')
 

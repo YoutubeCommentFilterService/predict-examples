@@ -39,7 +39,10 @@ export default class CommentFetcher {
                     comments.push(...results)
                 }
             } catch (err) {
-                if (axios.isAxiosError(err)) console.error(err.response?.data)
+                if (axios.isAxiosError(err)) {
+                    const axiosError = err.response?.data
+                    console.error(axiosError?.error?.code, axiosError?.error?.errors)
+                }
                 else console.error(err)
                 nextPageToken = null;
             }
@@ -49,6 +52,8 @@ export default class CommentFetcher {
             const updatedTime = new Date(comment.updatedAt);
             return updatedTime > baseTime;
         })
+
+        comments.sort((a, b) => b.likes - a.likes)
         // 모든 댓글을 가져온 후 댓글 번역 시작
         // comments = await Promise.all(comments.map(async comment => {
         //     let translatedText = comment.translatedText

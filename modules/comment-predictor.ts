@@ -8,7 +8,7 @@ import { resourceLimits } from 'worker_threads';
 export default class CommentPredictor {
     private serverUrl: string | undefined;
     constructor() {
-        this.serverUrl = process.env.SERVER_URL;
+        this.serverUrl = process.env.PREDICT_SERVER_URL;
     }
 
     predictComment = async (originDatas: ExtractedComment[], videoId: string, debug: boolean = false): Promise<SpamContent[]> => {

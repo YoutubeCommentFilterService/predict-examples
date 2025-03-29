@@ -145,10 +145,10 @@ export default class VideoFetcher {
                 }
     
                 const [width, height] = results.at(-1)?.resolution.toLowerCase().split('x') || []
-                if (!width || !height) reject('video resolution not found');
+                if (!width || !height) reject(`video ${videoId} resolution not found`);
     
                 const videoRatio = Number(width) / Number(height)
-                if (Number.isNaN(videoRatio)) reject('video resolution calculation result is NaN')
+                if (Number.isNaN(videoRatio)) reject(`video ${videoId} resolution calculation result is NaN`)
     
                 resolve(videoRatio)
             })

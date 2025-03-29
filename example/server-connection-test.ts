@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 dotenv.config({path: '../.env'})
 
 try {
-    const result = await axios.get(`${process.env.SERVER_URL}/connection`, {
+    const result = await axios.get(`${process.env.PREDICT_SERVER_URL}/connection`, {
         timeout: 3000,
     });
 } catch (err) {

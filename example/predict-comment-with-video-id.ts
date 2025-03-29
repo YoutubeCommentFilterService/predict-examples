@@ -1,28 +1,19 @@
-import type { ExtractedComment } from '../types';
 import dotenv from 'dotenv'
-
-import fs from 'fs';
-import appRootPath from 'app-root-path';
 import { Services } from '../modules';
 
 dotenv.config({
-    path: '../.env'
+    path: '../env/.env'
 })
 
-console.log(process.env.YOUTUBE_DATA_API_KEY)
-const channelInfoFercher = new Services.ChannelInfoFetcher();
-const videoFetcher = new Services.VideoFetcher();
 const commentFetcher = new Services.CommentFetcher();
 const commentPredictor = new Services.CommentPredictor();
 
 
-const videoIds: string[] = ['vEIjQYiiOvM'];
-
-const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
-const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').trim().split('\n')
+const videoIds: string[] = ['2bIg5GvLQ7Q'];
 
 for (let videoId of videoIds) {
     const { comments: fetchedComments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(videoId, '');
+    console.log(fetchedComments.length);
     console.time("Execution Time")
     const predicted = await commentPredictor.predictComment(fetchedComments, videoId);
     console.timeEnd("Execution Time")

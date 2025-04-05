@@ -22,12 +22,12 @@ for (let video of videos) {
     const { comments, lastSearchTime } = await commentFetcher.fetchCommentsByVideoId(video.id, '');
     const predictResults = await commentPredicter.predictComment(comments, video.id);
 
-    // const mailData = {
-    //     video: {
-    //         id: video.id,
-    //         title: video.snippet.title,
-    //     },
-    //     comments: predictResults
-    // }
-    // mailerService.sendMail("gkstkdgus821@gmail.com", mailData);
+    const mailData = {
+        video: {
+            id: video.id,
+            title: video.title,
+        },
+        comments: predictResults
+    }
+    mailerService.sendMail("gkstkdgus821@gmail.com", mailData);
 }

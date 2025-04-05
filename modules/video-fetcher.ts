@@ -18,7 +18,7 @@ export default class VideoFetcher {
         maxDuration: number = 1000,
         notFetchFilter?: {categoryId: (number | string)[], title: string[]}
     ): Promise<FetchedVideo[]> => {
-        if (maxResults <= 0) maxResults = 0
+        if (maxResults <= 0) maxResults = 10
         else if (maxResults > 50) maxResults = 50
 
         let nextPageToken: string | undefined = "";

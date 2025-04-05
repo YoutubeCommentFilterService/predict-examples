@@ -21,7 +21,6 @@ export default class CommentPredictor {
         }
         try {
             const items = originDatas.map((data) => ({
-                id: data.id,
                 nickname: data.nickname,
                 comment: data.translatedText,
             }))
@@ -46,7 +45,7 @@ export default class CommentPredictor {
                 const spamResult = {
                     nickname: originDatas[idx].nickname,
                     comment,
-                    id: item.id,
+                    id: originDatas[idx].id,
                     profileImage: originDatas[idx].profileImage,
                     nicknamePredicted,
                     commentPredicted,

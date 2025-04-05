@@ -13,7 +13,7 @@ try {
         timeout: 1000,
     });
 } catch (err) {
-    console.error('server not connected', )
+    console.error('server not connected')
     process.exit(-1)
 }
 
@@ -49,13 +49,12 @@ const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').
     return acc;
 }, {} as {[key: string]: {baseTime: string, title: string}});
 
-const emailDB = fs.readFileSync(`${appRootPath}/datas/emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
-// const canSeekEmailDB = fs.readFileSync(`${appRootPath}/datas/can-find-emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
-const skipSeekEmailDB = fs.readFileSync(`${appRootPath}/datas/skip-emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
 
-const mailDB = new Services.MailDB(emailDB);
-// const canSeekMailDB = new Services.MailDB(canSeekEmailDB)
-const skipSeekMailDB = new Services.MailDB(skipSeekEmailDB)
+const emailDBTxt = fs.readFileSync(`${appRootPath}/datas/emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
+const skipEmailDBTxt = fs.readFileSync(`${appRootPath}/datas/skip-emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
+
+const mailDB = new Services.MailDB(emailDBTxt);
+const skipMailDB = new Services.MailDB(skipEmailDBTxt)
 
 const videoFetcher = new Services.VideoFetcher();
 const commentFetcher = new Services.CommentFetcher();
@@ -82,7 +81,7 @@ const notFetchFilter: {categoryId: (number | string)[], title: string[]} = {
 const categories: (number | string)[] = [0, 15, 20, 22, 23, 26, 28]
 
 const videoFetchProcessLimit = pLimit(categories.length)
-const dateDiff = 1;
+const dateDiff = 5;
 const includeShortsVideo = false;
 console.time('fetch - promise')
 let fetchedVideosList: FetchedVideo[] = (await Promise.all(
@@ -90,14 +89,14 @@ let fetchedVideosList: FetchedVideo[] = (await Promise.all(
 )).flat();
 console.timeEnd('fetch - promise')
 
-let fetchedVideosSet = Array.from(new Map(fetchedVideosList.map(video => [video.id, video])).values().filter(video => !skipSeekMailDB.existUser(video.channelId)))
+let fetchedVideosSet = Array.from(new Map(fetchedVideosList.map(video => [video.id, video])).values().filter(video => !skipMailDB.existUser(video.channelId)))
 fetchedVideosList = null as any;
 
 // 메일 DB에 없다면 찾아야 할 것으로 넣기
 const toSearchEmailTxt = `${appRootPath}/datas/to-search-emails.txt`
 fs.writeFileSync(toSearchEmailTxt, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
 [...new Set(fetchedVideosSet.map(video => video.channelId))].forEach(channelId => {
-    if (mailDB.getEmail(channelId) || skipSeekMailDB.existUser(channelId)) return
+    if (mailDB.getEmail(channelId) || skipMailDB.existUser(channelId)) return
     fs.appendFileSync(toSearchEmailTxt, `${channelId}, \n`, 'utf-8')
 })
 
@@ -180,8 +179,8 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
     if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
 
     // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
-    const email = mailDB.getEmail(channelId);
-    if (!email) {
+    const emails = mailDB.getEmail(channelId);
+    if (!emails) {
         const originalPredictedFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
         const noEmailPredictedFile = `${appRootPath}/email-not-found/${channelId}.${videoId}.spam.txt`;
         if (fs.existsSync(originalPredictedFile)) fs.rename(originalPredictedFile, noEmailPredictedFile, (err) => {
@@ -191,7 +190,9 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
     }
     // 메일 보내기
     const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
-    await mailerService.sendMail(email, mailDataV2, 'v2');
+    for (const email of emails) {
+        await mailerService.sendMail(email, mailDataV2, 'v2');
+    }
     const beforeSpamFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
     const sentSpamFile = `${appRootPath}/predicts-sent/${videoId}.spam.txt`;
     if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {

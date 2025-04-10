@@ -181,3 +181,4 @@ datas/
 email-not-found/
 env/
 example/cookies.json
+predict-results/**

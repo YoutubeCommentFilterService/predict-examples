@@ -13,11 +13,12 @@ export default class CommentPredictor {
 
     predictComment = async (originDatas: ExtractedComment[], videoId: string, debug: boolean = false): Promise<SpamContent[]> => {
         const predictSpamResults: SpamContent[] = [];
-        const predictCommonResults: { [key: string]: string[]} = {
+        const predictResults: { [key: string]: string[]} = {
             'normal': [],
             'rank': [],
             'beg': [],
             'nsee': [],
+            'spam': [],
         }
         try {
             const items = originDatas.map((data) => ({
@@ -54,36 +55,32 @@ export default class CommentPredictor {
                     parentId: originDatas[idx].parentId,
                     updatedAt: new Date(originDatas[idx].updatedAt).toLocaleString('ko-KR', { "timeZone": "Asia/Seoul"})
                 } as SpamContent;
-                if (isSpamComment) predictSpamResults.push(spamResult)
+                
+                const crToSpace = comment.replace(/\r/g, '').replace(/\n/g, '  ')
+                const writeData = `${originDatas[idx].profileImage}\n\t${originDatas[idx].nickname} - ${originDatas[idx].likes}, https://youtube.com/@${originDatas[idx].nickname}\n\t${nicknameProb}\n\t${commentProb}\n\t${crToSpace}`
+                if (isSpamComment) {
+                    predictResults['spam'].push(writeData)
+                    predictSpamResults.push(spamResult)
+                }
                 else if (debug) {
-                    const crToSpace = comment.replace(/\r/g, '').replace(/\n/g, '   ')
-                    const removeGolbangE = originDatas[idx].nickname.substring(1)
-                    const writeData = `${nicknameProb}, ${removeGolbangE}\n\t${commentProb}, ${crToSpace}`
-                    if (isRankComment) predictCommonResults['rank'].push(writeData)
-                    else if (isBegComment) predictCommonResults['beg'].push(writeData)
-                    else if (isNSeeComment) predictCommonResults['nsee'].push(writeData)
-                    else predictCommonResults['normal'].push(writeData)
+                    if (isRankComment) predictResults['rank'].push(writeData)
+                    else if (isBegComment) predictResults['beg'].push(writeData)
+                    else if (isNSeeComment) predictResults['nsee'].push(writeData)
+                    else predictResults['normal'].push(writeData)
                 }
             })
         } catch (err) {
             if (axios.isAxiosError(err)) console.error(err.response?.data);
             else console.error(err)
         }
-        if (predictSpamResults.length > 0) this.saveAsSpam(videoId, predictSpamResults);
-        Object.keys(predictCommonResults).forEach(key => {
-            if (predictCommonResults[key].length > 0) this.saveCommonResult(key, videoId, predictCommonResults[key])
+        Object.keys(predictResults).forEach(key => {
+            if (predictResults[key].length > 0) this.saveResult(key, videoId, predictResults[key])
         })
         return predictSpamResults;
     }
 
-    private saveAsSpam = (videoId: string, predictSpamResults: SpamContent[]): void => {
-        const fname = `${appRootPath}/predicts/${videoId}.spam.txt`
-        const writeData = predictSpamResults.map(result => `${result.profileImage}\n\t(${result.nicknamePredicted}), ${result.nicknameProb} - ${result.nickname}\n\t${result.commentProb} - ${result.comment.replaceAll('\r\n', ' ').replaceAll('\n', ' ')}`).join('\n')
-        fs.writeFileSync(fname, writeData + '\n')
-    }
-
-    private saveCommonResult = (type: string, videoId: string, datas: string[]): void => {
-        const fname = `${appRootPath}/predicts/${videoId}.${type}.txt`
+    private saveResult = (type: string, videoId: string, datas: string[]): void => {
+        const fname = `${appRootPath}/predict-results/predicts/${videoId}.${type}.txt`
         const writeData = datas.join('\n')
         fs.writeFile(fname, writeData, (err) => {
             if (err) console.error(err)

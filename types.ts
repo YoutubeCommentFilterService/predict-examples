@@ -57,7 +57,7 @@ export interface YoutubeComment extends YoutubeCommonField {
 }
 
 export interface SpamResult {
-    id: string;
+    id?: string;
     nickname: string;
     comment: string;
 }
@@ -105,8 +105,8 @@ export interface SpamContent extends SpamResult {
     nicknameProb: string;
     commentPredicted: string;
     commentProb: string;
-    parentId: string;
-    updatedAt: string;
+    parentId?: string;
+    updatedAt?: string;
 }
 
 export interface YoutubeVideoList extends YoutubeCommonField, YoutubeCommonPagenation {

@@ -27,6 +27,7 @@ export default class VideoFetcher {
             let { data }: { data: YoutubeVideoList } = await axios.get<YoutubeVideoList>("https://www.googleapis.com/youtube/v3/videos", {
                 params: {
                     ...this.defaultParams(maxResults, nextPageToken),
+                    chart: "mostPopular",
                 }
             })
             let items = data.items.filter(video => this.doNotFetchVideoFilter(video, notFetchFilter))
@@ -56,6 +57,7 @@ export default class VideoFetcher {
                 params: {
                     ...this.defaultParams(maxResults, nextPageToken),
                     videoCategoryId: `${videoCategoryId}`,
+                    chart: "mostPopular",
                 }
             })
             let items = data.items.filter(video => !this.doNotFetchVideoFilter(video, notFetchFilter))
@@ -67,6 +69,23 @@ export default class VideoFetcher {
         if (!includeShorts) videos = await this.removeShortsVideoItem(videos)
 
         return this.generateCommonVideoDatas(videos)
+    }
+
+    fetchVideoById = async (
+        videoIds: string[],
+        maxResults: number = 50,
+    ) => {
+        try {
+            let { data }: { data: YoutubeVideoList } = await axios.get<YoutubeVideoList>("https://www.googleapis.com/youtube/v3/videos", {
+                params: {
+                    ...this.defaultParams(maxResults, ""),
+                    id: videoIds.join(',')
+                }
+            })
+            return this.generateCommonVideoDatas(data.items);
+        } catch (err) {
+            console.error(err.response)
+        }
     }
 
     private doNotFetchVideoFilter = (video: YoutubeVideo, notFetchFilter?: {categoryId: (number | string)[], title: string[]}) => {
@@ -113,7 +132,6 @@ export default class VideoFetcher {
         part: "snippet, contentDetails",
         maxResults,
         regionCode: "KR",
-        chart: "mostPopular",
         pageToken: nextPageToken,
     })
 

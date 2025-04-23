@@ -7,6 +7,7 @@ export default class MailerService {
     private transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo, SMTPTransport.Options>;
     private mainTemplatePath: string = `${appRootPath}/static/spam-comment-email-template.ejs`
     private templatePath: {[key: string]: string} = {
+        v0: `${appRootPath}/static/v0.ejs`,
         v1: `${appRootPath}/static/v1.ejs`,
         v2: `${appRootPath}/static/v2.ejs`
     }

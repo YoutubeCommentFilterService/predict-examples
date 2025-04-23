@@ -8,6 +8,10 @@ import axios from 'axios';
 
 dotenv.config({ path: `${appRootPath}/env/.env` })
 
+const dateDiff = 5;
+const includeShortsVideo = true;
+const predictDebugFlag = true
+
 try {
     await axios.get(`${process.env.PREDICT_SERVER_URL}/status`, {
         timeout: 1000,
@@ -81,8 +85,6 @@ const notFetchFilter: {categoryId: (number | string)[], title: string[]} = {
 const categories: (number | string)[] = [0, 15, 20, 22, 23, 26, 28]
 
 const videoFetchProcessLimit = pLimit(categories.length)
-const dateDiff = 5;
-const includeShortsVideo = false;
 console.time('fetch - promise')
 let fetchedVideosList: FetchedVideo[] = (await Promise.all(
     categories.map(categoryId => videoFetchProcessLimit(() => videoFetcher.fetchVideoByCategoryId(categoryId, 50, includeShortsVideo, dateDiff, notFetchFilter)))
@@ -167,6 +169,7 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
         baseTime: lastSearchTime,
         title: videoTitle,
     }
+
     comments = comments.filter(comment => getKoreanRatio(comment.translatedText) > 20 && comment.translatedText.length > 4)
     if (comments.length === 0) return; // 403, 즉 동영상이 댓글을 닫은 경우
                                          // 400, 즉 동영상에 댓글이 없는 경우(거의 없긴 하다)
@@ -178,30 +181,33 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
     console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
     if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
 
+    const beforeSpamFile = `${appRootPath}/predict-results/predicts/${videoId}.spam.txt`;
+    const sentSpamFile = `${appRootPath}/predict-results/predicts-sent/${videoId}.spam.txt`;
+    const emailNotFoundFile = `${appRootPath}/predict-results/email-not-found/${videoId}.spam.txt`;
+
+    // return
     // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
     const emails = mailDB.getEmail(channelId);
     if (!emails) {
-        const originalPredictedFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
-        const noEmailPredictedFile = `${appRootPath}/email-not-found/${channelId}.${videoId}.spam.txt`;
-        if (fs.existsSync(originalPredictedFile)) fs.rename(originalPredictedFile, noEmailPredictedFile, (err) => {
+        fs.rename(beforeSpamFile, emailNotFoundFile, (err) => {
             if (err) console.error(err)
-        });
+        })
         return
     }
+
     // 메일 보내기
     const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
+    // await mailerService.sendMail('gkstkdgus821@gmail.com', mailDataV2, 'v2')
+
     for (const email of emails) {
         await mailerService.sendMail(email, mailDataV2, 'v2');
     }
-    const beforeSpamFile = `${appRootPath}/predicts/${videoId}.spam.txt`;
-    const sentSpamFile = `${appRootPath}/predicts-sent/${videoId}.spam.txt`;
-    if (fs.existsSync(beforeSpamFile)) fs.rename(beforeSpamFile, sentSpamFile, (err) => {
-        if (err) console.error(err)
-    });
+    if (fs.existsSync(beforeSpamFile)) 
+        fs.rename(beforeSpamFile, sentSpamFile, (err) => {
+            if (err) console.error(err)
+        });
 }
 
-
-const predictDebugFlag = false
 const totalPredictStart = performance.now()
 
 flag = flag || process.argv[2]
@@ -219,6 +225,7 @@ if (flag === 'sync') {
     await Promise.all(predictCommentPromises)
 }
 console.log(`predict total ${Math.floor(performance.now() - totalPredictStart) / 1000}s`)
+
 
 // 이미 추론한 것들을 저장해야할까? 삭제 안했을수도 있지 않을까?
 Object.assign(alreadyPredictedVideo, predictedVideoFormat);

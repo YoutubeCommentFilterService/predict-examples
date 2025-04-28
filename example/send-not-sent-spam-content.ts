@@ -14,6 +14,7 @@ const videoFetcher = new Services.VideoFetcher();
 
 const mailerService = new Services.MailerService();
 
+const predictedFilePath = `${appRootPath}/predict-results/predicts`
 const spamFilePath = `${appRootPath}/predict-results/email-not-found`
 const moveToPath = `${appRootPath}/predict-results/predicts-sent`
 
@@ -27,6 +28,26 @@ const generateMailData = (videoInfo: FetchedVideo, spamContent: SpamContent[]): 
         comments: spamContent
     }
 }
+// 혹시나 옮겨지지 못한 spam data가 있을 수 있으니 옮긺
+const spamfileRegex = /\.spam\./;
+const notMovedSpamFiles = fs.readdirSync(predictedFilePath, { encoding: 'utf-8' }).filter((fileName) => spamfileRegex.test(fileName))
+let promises = notMovedSpamFiles.map(filename => {
+    return new Promise((resolve, reject) => {
+        fs.rename(
+            `${predictedFilePath}/${filename}`, 
+            `${spamFilePath}/${filename}`, 
+            (err) => {
+                if (err) {
+                    console.error(err)
+                    reject(err);
+                } else {                   
+                    resolve(0)
+                }
+            }
+        )
+    })
+})
+await Promise.all(promises)
 
 // 모든 파일을 읽는다
 const files = fs.readdirSync(spamFilePath, { encoding: 'utf-8' }).map((fileName) => fileName.split('.')[0])
@@ -80,7 +101,7 @@ for (const videoInfo of toSendVideoInfos) {
     }
 }
 
-const promises = toSendVideoInfos.map(async (videoInfo) => {
+promises = toSendVideoInfos.map(async (videoInfo) => {
     const mailData = generateMailData(videoInfo, toSendSpamDatas[videoInfo.id]);
     const emails = mailDB.getEmail(videoInfo.channelId);
 

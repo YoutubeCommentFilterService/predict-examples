@@ -56,7 +56,7 @@ export default class MailerService {
 
     sendMail = async (to: string, data: any, version: string = 'v1'): Promise<void> => {
         try {
-            const title = `[유댓청소] ${this.truncateString(data.video.title, 20)} 영상에 의심스러운 댓글이 감지되었습니다.`
+            const title = `유튜브 영상 ${this.truncateString(data.video.title, 20)} 댓글 관리 안내`
             const mailBody = await this.renderTemplate(this.templatePath[version], data)
             const template = await this.renderTemplate(this.mainTemplatePath, { video: data['video'], partialBodyTemplate: mailBody, version })
             const mailOptions = this.generateMailOptions(to, title, template)

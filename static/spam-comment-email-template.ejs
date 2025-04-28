@@ -1,8 +1,7 @@
 <html>
   <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333;">
     <div style="width: 80%; max-width: 1200px; margin: 20px auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-      <p style="text-align: center; margin-top: 20px; font-size: 14px; color: #34495e;">※ 특정 카테고리의 인기 급상승 동영상에 올라가고 스팸이 달리면 알려드리는 서비스입니다. ※<br/>※ 스팸으로 되었다면 스팸 차단 해제 바랍니다. ※</p>
-      <h1 style="font-size: 24px; margin-bottom: 10px; text-align: center; color: #2980b9;">귀하의 동영상에 스팸 의심 댓글이 감지되었습니다.</h1>
+      <p style="text-align: center; margin-top: 20px; font-size: 14px; color: #34495e;">※ 특정 카테고리의 인기 급상승 동영상에 올라가고 광고성 댓글이 달리면 알려드리는 서비스입니다. ※</p>
       <div style="background-color: #fdfdfd; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
         <div style="display:flex; align-items:center; flex-direction: column;">
           <img src="<%= video.thumbnail %>">
@@ -10,13 +9,11 @@
         </div>
         <div style="text-align: center;">
           <img src="https://i.imgur.com/FOHAkV8.png" style="padding: 10px;"/>
-          <span style="display: block;">검색은 문장에서 일부만 검색하면 됩니다!</span>
+          <span style="display: block;">댓글의 일부를 유튜브 스튜디오에 검색하여 직접 삭제해주시면 됩니다.</span>
         </div>
       </div>
       <div style="text-align: center;">
-        <p>스팸성이 높은 댓글을 추출해 학습 중입니다.</p>
-        <p>하지만 한국어의 특성상 필터링이 완벽하진 않습니다.</p>
-        <p>아래 댓글들은 스팸일 가능성이 높으니 확인 후 삭제해주세요.</p>
+        <p>아래 댓글들은 분석 결과 광고성 또는 불필요한 댓글로 확인되었습니다.</p>
         <p>추론 확률이 궁금하다면 닉네임이나 댓글에 마우스 커서를 올려보세요.</p>
         <% if (version == 'v2') { %>
         <p>최상위 댓글 하나만 삭제해도 하위 댓글들이 삭제됩니다!</p> 
@@ -24,12 +21,12 @@
       </div>
       <%- partialBodyTemplate %>
       <p style="font-size: 14px; text-align: center; color: #000; margin-top: 30px;">
-        <span style="display: inline-block; font-weight: bold;">※ 만약, 귀하의 영상이 아니라면 회신 바랍니다. 또한 받는 다른 이메일 주소가 있다면 이메일 주소를 회신 바랍니다. ※</span>
+        <span style="display: inline-block; font-weight: bold;">※ 메일 수신을 희망히지 않다면 회신 바랍니다. ※</span>
       </p>
       <div style="text-align: center; margin-top: 30px;">
         <p style="font-size: 14px; color: #555;">
-          유튜브 채널에 달린 스팸 댓글, 더 쉽게 관리하고 싶으신가요?<br/>
-          <strong>유댓청소</strong>는 영상의 댓글에서 스팸 댓글을 추론하고 직접 삭제할 수 있는 기능을 제공합니다!<br/>
+          유튜브 채널에 달린 광고성 댓글, 더 쉽게 관리하고 싶으신가요?<br/>
+          <strong>유댓청소</strong>는 영상의 댓글에서 광고성 댓글을 추론하고 직접 삭제할 수 있는 기능을 제공합니다!<br/>
           👉 <a href="https://spampredict.store" style="color: #0288d1; font-weight: bold;">https://spampredict.store</a>
         </p>
       </div>

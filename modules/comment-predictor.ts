@@ -2,8 +2,6 @@ import axios from 'axios';
 import type { ExtractedComment, PredictResponse, PredictResult, SpamContent, SpamResult } from '../types';
 import fs from 'fs';
 import appRootPath from 'app-root-path';
-import { seperator } from './utils';
-import { resourceLimits } from 'worker_threads';
 
 export default class CommentPredictor {
     private serverUrl: string | undefined;
@@ -57,7 +55,7 @@ export default class CommentPredictor {
                 } as SpamContent;
                 
                 const crToSpace = comment.replace(/\r/g, '').replace(/\n/g, '  ')
-                const writeData = `${originDatas[idx].profileImage}\n\t${originDatas[idx].nickname} - ${originDatas[idx].likes}, https://youtube.com/@${originDatas[idx].nickname}\n\t${nicknameProb}\n\t${commentProb}\n\t${crToSpace}`
+                const writeData = `${originDatas[idx].profileImage}\n\t${originDatas[idx].nickname} - ${originDatas[idx].likes}, https://youtube.com/${originDatas[idx].nickname}\n\t${nicknameProb}\n\t${commentProb}\n\t${crToSpace}`
                 if (isSpamComment) {
                     predictResults['spam'].push(writeData)
                     predictSpamResults.push(spamResult)
@@ -74,6 +72,7 @@ export default class CommentPredictor {
             else console.error(err)
         }
         Object.keys(predictResults).forEach(key => {
+            if (!debug && key !== "spam") return;
             if (predictResults[key].length > 0) this.saveResult(key, videoId, predictResults[key])
         })
         return predictSpamResults;

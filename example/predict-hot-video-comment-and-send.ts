@@ -180,21 +180,30 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
 
     console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
     if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
-
-    const beforeSpamFile = `${appRootPath}/predict-results/predicts/${videoId}.spam.txt`;
-    const sentSpamFile = `${appRootPath}/predict-results/predicts-sent/${videoId}.spam.txt`;
-    const emailNotFoundFile = `${appRootPath}/predict-results/email-not-found/${videoId}.spam.txt`;
+    
+    const filename = `${videoId}.spam.txt`
+    const beforeSpamFile = `${appRootPath}/predict-results/predicts/${filename}`;
+    const sentSpamFile = `${appRootPath}/predict-results/predicts-sent/${filename}`;
+    const emailNotFoundFile = `${appRootPath}/predict-results/email-not-found/${filename}`;
 
     // return
     // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
     const emails = mailDB.getEmail(channelId);
     if (!emails) {
-        fs.rename(beforeSpamFile, emailNotFoundFile, (err) => {
-            if (err) console.error(err)
-        })
+        if (fs.existsSync(beforeSpamFile))
+            fs.rename(beforeSpamFile, emailNotFoundFile, (err) => {
+                if (err) console.error(err)
+            })
         return
     }
 
+    
+    if (fs.existsSync(beforeSpamFile)) 
+        fs.rename(beforeSpamFile, sentSpamFile, (err) => {
+            if (err) console.error(err)
+        });
+
+    // return;
     // 메일 보내기
     const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
     // await mailerService.sendMail('gkstkdgus821@gmail.com', mailDataV2, 'v2')
@@ -202,10 +211,6 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
     for (const email of emails) {
         await mailerService.sendMail(email, mailDataV2, 'v2');
     }
-    if (fs.existsSync(beforeSpamFile)) 
-        fs.rename(beforeSpamFile, sentSpamFile, (err) => {
-            if (err) console.error(err)
-        });
 }
 
 const totalPredictStart = performance.now()
@@ -232,3 +237,27 @@ Object.assign(alreadyPredictedVideo, predictedVideoFormat);
 const writeData = Object.entries(alreadyPredictedVideo)
     .map(([key, val]) => `${val.baseTime}${seperator}${key}${seperator}${val.title}`)
 fs.writeFileSync(alreadyPredictedVideoDB, writeData.join('\n'), 'utf-8')
+
+// 혹시나 옮겨지지 못한 spam data가 있을 수 있으니 옮긺
+const predictedFilePath = `${appRootPath}/predict-results/predicts`
+const spamFilePath = `${appRootPath}/predict-results/email-not-found`
+const spamfileRegex = /\.spam\./;
+const notMovedSpamFiles = fs.readdirSync(predictedFilePath, { encoding: 'utf-8' }).filter((fileName) => spamfileRegex.test(fileName))
+let promises = notMovedSpamFiles.map(filename => {
+    return new Promise((resolve, reject) => {
+        fs.rename(
+            `${predictedFilePath}/${filename}`, 
+            `${spamFilePath}/${filename}`, 
+            (err) => {
+                if (err) {
+                    console.error(err)
+                    reject(err);
+                } else {                   
+                    resolve(0)
+                }
+            }
+        )
+    })
+})
+await Promise.all(promises)
+console.log('normal file count: ', fs.readdirSync(predictedFilePath).length)

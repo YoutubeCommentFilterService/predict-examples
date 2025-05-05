@@ -8,7 +8,8 @@ dotenv.config({
 const commentFetcher = new Services.CommentFetcher();
 const commentPredictor = new Services.CommentPredictor();
 
-
+// bBwgxAboHxI
+// 2bIg5GvLQ7Q - 임영웅
 const videoIds: string[] = ['2bIg5GvLQ7Q'];
 
 for (let videoId of videoIds) {

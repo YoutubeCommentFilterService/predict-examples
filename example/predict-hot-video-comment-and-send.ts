@@ -126,20 +126,20 @@ const generateMailDataV2 = (videoInfo: FetchedVideo, spamComments: SpamContent[]
             })
         })
     }
-    spamComments.sort((a, b) => a.parentId.length - b.parentId.length)
+    spamComments.sort((a, b) => a.parentId!!.length - b.parentId!!.length)
     const mailDataTree: MailDataTree = {}
-    const parentIds: string[] = [...new Set(spamComments.map(spamComment => spamComment.id.startsWith('U') ? spamComment.id : '').filter(id => id !== ''))]
+    const parentIds: string[] = [...new Set(spamComments.map(spamComment => spamComment.id!!.startsWith('U') ? spamComment.id : '').filter(id => id !== ''))]
     spamComments.forEach(data => {
         if (data.parentId === '') {
-            mailDataTree[data.id] = {
+            mailDataTree[data.id!!] = {
                 root: data,
                 items: []
             }
         } else {
-            if (parentIds.includes(data.parentId)) {
-                mailDataTree[data.parentId].items.push(data)
+            if (parentIds.includes(data.parentId!!)) {
+                mailDataTree[data.parentId!!].items.push(data)
             } else {
-                mailDataTree[data.id] = {
+                mailDataTree[data.id!!] = {
                     root: data,
                     items: []
                 }

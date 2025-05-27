@@ -17,6 +17,7 @@ export default class CommentPredictor {
             'beg': [],
             'nsee': [],
             'spam': [],
+            'rq': [],
         }
         try {
             const items = originDatas.map((data) => ({
@@ -35,6 +36,7 @@ export default class CommentPredictor {
                 const isRankComment = isNormalNickname && commentPredicted === '순위'
                 const isBegComment = isNormalNickname && commentPredicted === '구걸'
                 const isNSeeComment = isNormalNickname && commentPredicted === '안봄'
+                const isReQuest = isNormalNickname && commentPredicted === '요청/질문'
 
                 const nicknameProb = item.nickname_predicted_prob.map((data, idx) => `${nicknameCategories[idx]}(${String(Math.floor(data*100)).padStart(3, ' ')}%)`).join(', ')
                 const commentProb = item.comment_predicted_prob.map((data, idx) => `${commentCategories[idx]}(${String(Math.floor(data*100)).padStart(3, ' ')}%)`).join(', ')
@@ -64,6 +66,7 @@ export default class CommentPredictor {
                     if (isRankComment) predictResults['rank'].push(writeData)
                     else if (isBegComment) predictResults['beg'].push(writeData)
                     else if (isNSeeComment) predictResults['nsee'].push(writeData)
+                    else if (isReQuest) predictResults['rq'].push(writeData)
                     else predictResults['normal'].push(writeData)
                 }
             })

@@ -1,11 +1,11 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import axuis, { isAxiosError } from 'axios'
 import pLimit from 'p-limit';
 import fs from 'fs';
 import appRootPath from 'app-root-path';
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import dotenv from 'dotenv';
 import { seperator } from '../modules/utils';
+import * as cheerio from 'cheerio';
 
 dotenv.config({ path: `${appRootPath}/env/.env` })
 
@@ -188,6 +188,72 @@ finalResults.forEach(result => finalDict[result.channelId] = {
 console.log('crawling failed - ', retrySearches)
 
 
+const fetchInstagranInfo = async (browser: Browser, instagramUrl: string) => {
+    
+}
+
+const fetchAfreecaInfo = () => {
+
+}
+
+// https://developers.facebook.com/docs/pages-api/search-pages
+const fetchFacebookInfo = async (url: string) => {
+    if (!url.startsWith('http')) url = 'https://' + url
+
+    const headers = {
+        'accept': 'text/html,application/xhtml+xml',
+        'accept-language': 'ko,en;q=0.9,en-US;q=0.8,zh-CN;q=0.7,zh;q=0.6',
+    }
+    const response = await axios.get(url, { headers })
+
+    const $ = cheerio.load(response.data);
+    const data_sjs_scripts = [ ...$('body').find('script').filter('[data-sjs]') ]
+    const side_pannel_datas = data_sjs_scripts.filter((elem) => $(elem).text().includes('FDSInfoCircleOutline20PNGIcon'))
+
+    let result: string[] = []
+    if (side_pannel_datas.length > 0) {
+        const side_pannel_data = $(side_pannel_datas[0]).text()
+
+        const data = JSON.parse(side_pannel_data)
+        const dataRequire = data['require'][0]
+
+        let requires: any[] = dataRequire.at(-1)
+        requires = requires.filter(obj => obj['__bbox'])[0]['__bbox']['require']
+
+        const require = requires.filter((req: string) => req.includes('RelayPrefetchedStreamCache'))[0]
+
+        let profilePannelData = require.at(-1).at(-1)
+        profilePannelData = profilePannelData['__bbox']['result']['data']['profile_tile_sections']['edges'][0]
+        profilePannelData = profilePannelData['node']['profile_tile_views']['nodes']
+
+        for (const node of profilePannelData) {
+            const viewStyleRenderer = node['view_style_renderer']
+            if (!viewStyleRenderer) continue
+
+            const typeName = viewStyleRenderer['__typename']
+            const nodes = viewStyleRenderer['view']['profile_tile_items']['nodes']
+
+            if (typeName == 'ProfileTileViewIntroBioRenderer') {
+                for (const n of nodes)
+                    result = [ 
+                        ...result, 
+                        ...n['node']['profile_status_text']['text'].split('\n').reduce((prev: string[], cur: string) => 
+                            cur ? [...prev, cur] : prev
+                        , [])
+                    ]
+            }
+            else if (typeName == 'ProfileTileViewContextListRenderer') {
+                for (const n of nodes)
+                    result = [ 
+                        ...result, 
+                        n['node']['timeline_context_item']['renderer']['context_item']['title']['text']
+                    ]
+            }
+        }
+    }
+    return result.filter(item => item.search(emailRegex)).map(item => item.match(emailRegex))
+}
+
 const fetchChannelData = async (channelId: string, channelUUID: string) => {
     const executeUUID = `$${channelUUID}`;
     const toBase64 = 'â©²`' + channelId + 'D8gYrGimaASYK' + Buffer.from(executeUUID).toString('base64url') + '%3D%3D'
@@ -209,11 +275,13 @@ const fetchChannelData = async (channelId: string, channelUUID: string) => {
         const channelViewModel = continuationItem['aboutChannelRenderer']['metadata']['aboutChannelViewModel']
 
         const emailsFromDescription = (channelViewModel['description'] || '').replace(/[\n\r\t\f\v]+/g, '  ').match(emailRegex) || [];
-        const emailsFromLinks = (channelViewModel['links'] || []).reduce((acc: string[], link) => {
-            const content = link?.channelExternalLinkViewModel?.link?.content;
-            if (emailRegex.test(content)) acc.push(content);
-            return acc;
-        }, [] as string[])
+        const emailsFromLinks = new Set();
+        for (const linkObj of (channelViewModel['links'] || [])) {
+            const content: string = linkObj?.channelExternalLinkViewModel?.link?.content;
+            if (emailRegex.test(content)) emailsFromLinks.add(content);
+            else if (content.includes('instagram')) null;
+            else if (content.includes('facebook')) (await fetchFacebookInfo(content)).forEach(item => emailsFromLinks.add(item))
+        }
         
         return {
             channelId,

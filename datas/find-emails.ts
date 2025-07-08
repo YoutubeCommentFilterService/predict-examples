@@ -367,5 +367,5 @@ await Promise.all([
     fs.promises.appendFile(`${dataPath}/emails.txt`, emailDatas.join('\n') + ((emailDatas.length > 0) ? '\n' : '')),
     fs.promises.appendFile(`${dataPath}/not-found.txt`, emailNotFoundDatas.join('\n') + ((emailNotFoundDatas.length > 0) ? '\n' : '')),
     fs.promises.appendFile(`${dataPath}/retry-failed.txt`, retrySearches.join('\n') + ((retrySearches.length > 0) ? '\n' : '')),
-    // fs.promises.rm(toSearchEmailListFile)
+    fs.promises.rm(toSearchEmailListFile)
 ])

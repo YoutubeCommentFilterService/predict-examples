@@ -251,7 +251,7 @@ const fetchFacebookInfo = async (url: string) => {
             }
         }
     }
-    return result.filter(item => item.search(emailRegex)).map(item => item.match(emailRegex))
+    return result.filter(item => emailRegex.test(item)).map(item => item.match(emailRegex)).flat(Infinity)
 }
 
 const fetchChannelData = async (channelId: string, channelUUID: string) => {
@@ -367,5 +367,5 @@ await Promise.all([
     fs.promises.appendFile(`${dataPath}/emails.txt`, emailDatas.join('\n') + ((emailDatas.length > 0) ? '\n' : '')),
     fs.promises.appendFile(`${dataPath}/not-found.txt`, emailNotFoundDatas.join('\n') + ((emailNotFoundDatas.length > 0) ? '\n' : '')),
     fs.promises.appendFile(`${dataPath}/retry-failed.txt`, retrySearches.join('\n') + ((retrySearches.length > 0) ? '\n' : '')),
-    fs.promises.rm(toSearchEmailListFile)
+    // fs.promises.rm(toSearchEmailListFile)
 ])

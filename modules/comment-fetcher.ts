@@ -53,6 +53,13 @@ export default class CommentFetcher {
             return updatedTime > baseTime;
         })
 
+        const seen: Set<string> = new Set();
+        comments = comments.filter(comment => {
+            if (seen.has(comment.id)) return false
+            seen.add(comment.id)
+            return true
+        })
+
         comments.sort((a, b) => b.likes - a.likes)
         // 모든 댓글을 가져온 후 댓글 번역 시작
         // comments = await Promise.all(comments.map(async comment => {

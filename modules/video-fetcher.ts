@@ -1,4 +1,4 @@
-import axios, { type AxiosResponse } from 'axios'
+import axios, { isAxiosError } from 'axios'
 import type { FetchedVideo, YoutubeVideo, YoutubeVideoCategoryList, YoutubeVideoList } from '../types';
 import { exec } from 'child_process'
 
@@ -84,7 +84,7 @@ export default class VideoFetcher {
             })
             return this.generateCommonVideoDatas(data.items);
         } catch (err) {
-            console.error(err.response)
+            if (isAxiosError(err)) console.error(err.response)
         }
     }
 
@@ -195,7 +195,7 @@ export default class VideoFetcher {
                 categories[category.id] = category.snippet.title
             }
         } catch (err) {
-            console.error(err)
+            if (isAxiosError(err)) console.error(err)
         }
         return categories;
     }

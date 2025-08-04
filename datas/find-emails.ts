@@ -36,8 +36,8 @@ console.log(`${succeed.length + failed.length} of ${succeed.length} succeed`)
 // uuid를 이용하여 채널 설명, 링크들에서 email 추출
 const spinnerOfFetchDescriptionJson = spinnerCarousel('FETCH DESCRIPTION JSON')
 
-const bioPromises = Object.entries(youtubeChannelEmailRecord).map(([channelId, channelData]) => fetchChannelData(channelId, channelData.uuid))
-const bioResults = await Promise.all(bioPromises)
+const fetchYoutubeBioPromises = Object.entries(youtubeChannelEmailRecord).map(([channelId, channelData]) => fetchChannelData(channelId, channelData.uuid))
+const bioResults = await Promise.all(fetchYoutubeBioPromises)
 bioResults.filter(res => res.emails).forEach(res => {
     const data = youtubeChannelEmailRecord[res.channelId]
     data.channelHandler = res.channelHandler ?? ''
@@ -75,15 +75,11 @@ async function fetchPlaylistItem(channelId: string): Promise<FetchPlaylistItemRe
 }
 
 async function retryFetchPlaylistItems(channelIds: string[]) {
-    const fetchPlaylistItemPromises = channelIds.map(fetchPlaylistItem)
-    return await Promise.all(fetchPlaylistItemPromises)
+    return await Promise.all(channelIds.map(fetchPlaylistItem))
 }
 
 const fetchPlaylistItemResults = await retryFetchPlaylistItems(Object.keys(youtubeChannelEmailRecord))
-fetchPlaylistItemResults.forEach(res => {
-    const targetList = res.error ? retryFetchPlaylistChannelIds : videoIds
-    targetList.push(...res.items)
-})
+fetchPlaylistItemResults.forEach(res => (res.error ? retryFetchPlaylistChannelIds : videoIds).push(...res.items))
 
 do {
     const fetchPlaylistItemResults = await retryFetchPlaylistItems(retryFetchPlaylistChannelIds)
@@ -112,7 +108,7 @@ while (videoIds.length > 0) {
         data.items.forEach(item => {
             const snippet = item.snippet
             if (snippet.description.trim() === '') return;
-            youtubeChannelEmailRecord[snippet.channelId]['emails'] = [...new Set([...youtubeChannelEmailRecord[snippet.channelId]['emails'], ...new Set(snippet.description.match(EMAIL_REGEX))])]
+            youtubeChannelEmailRecord[snippet.channelId].emails = [...new Set([...youtubeChannelEmailRecord[snippet.channelId].emails, ...new Set(snippet.description.match(EMAIL_REGEX) || [])])]
         })
     } catch (e) {
         if (isAxiosError(e)) console.error(e.message)

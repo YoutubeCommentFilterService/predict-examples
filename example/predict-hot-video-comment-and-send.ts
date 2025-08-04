@@ -9,7 +9,7 @@ import axios from 'axios';
 dotenv.config({ path: `${appRootPath}/env/.env` })
 
 const dateDiff = 5;
-const includeShortsVideo = true;
+const includeShortsVideo = false;
 const predictDebugFlag = true
 
 try {
@@ -203,7 +203,7 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
             if (err) console.error(err)
         });
 
-    // return;
+    return; // 실 서비스 전 정확도를 높이기 위해 25.05.24 기준 데이터만 수집
     // 메일 보내기
     const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
     // await mailerService.sendMail('gkstkdgus821@gmail.com', mailDataV2, 'v2')
@@ -261,3 +261,5 @@ let promises = notMovedSpamFiles.map(filename => {
 })
 await Promise.all(promises)
 console.log('normal file count: ', fs.readdirSync(predictedFilePath).length)
+
+await import(`${appRootPath}/datas/find-emails`)

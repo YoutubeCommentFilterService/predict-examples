@@ -1,9 +1,18 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 import type { YoutubeChannelBio, YoutubeChannelBioResponse } from "../types/youtube";
 import type { FacebookLeftPannelDescription } from '../types/facebook';
+import type { XBioDescription } from '../types/x-twitter';
 import * as cheerio from 'cheerio';
 import emailRegex from './email-regex';
 import { EMAIL_REGEX } from './constants';
+import appRootPath from 'app-root-path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: `${appRootPath}/env/.env` })
+
+const csrfToken = process.env.X_TWITTER_CSRF_TOKEN
+const authToken = process.env.X_TWITTER_AUTH_TOKEN
+const twitterToken = process.env.X_TWITTER_TEST_BEARER
 
 const baseAxiosHeader = {
     'User-Agent': ' Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
@@ -13,6 +22,8 @@ const handlerMap = new Map<string, (content: string) => Promise<string[]>>([
     ['facebook', fetchFacebookInfo],
     ['chzzk', fetchChzzkInfo],
     ['soop', fetchAfreecaInfo],
+    ['twitter', fetchXInfo],
+    ['x', fetchXInfo],
 ])
 
 async function fetchAfreecaInfo(url: string) {
@@ -74,12 +85,41 @@ async function fetchFacebookInfo(url: string) {
     }
 }
 
+async function fetchXInfo(url: string) {
+    const features = '%7B%22verified_phone_label_enabled%22:false,%22creator_subscriptions_tweet_preview_api_enabled%22:false,%22highlights_tweets_tab_ui_enabled%22:false,%22rweb_tipjar_consumption_enabled%22:false,%22subscriptions_verification_info_verified_since_enabled%22:false,%22hidden_profile_subscriptions_enabled%22:false,%22subscriptions_feature_can_gift_premium%22:false,%22profile_label_improvements_pcf_label_in_post_enabled%22:false,%22responsive_web_graphql_timeline_navigation_enabled%22:false,%22subscriptions_verification_info_is_identity_verified_enabled%22:false,%22responsive_web_graphql_skip_user_profile_image_extensions_enabled%22:false,%22responsive_web_twitter_article_notes_tab_enabled%22:false,%22payments_enabled%22:false%7D'
+    const variables = encodeURI(`{"screen_name":"${url.split('/').at(-1)}","withGrokTranslatedBio":false}`)
+    const queryParam = `variables=${variables}&features=${features}`
+
+    const cookies = {
+        'auth_token': authToken,
+        'ct0': csrfToken
+    }
+    const cookieHeader = Object.entries(cookies)
+        .map(([key, val]) => `${key}=${val}`)
+        .join(';')
+
+    try {
+        const { data } = await axios.get<XBioDescription>(`https://x.com/i/api/graphql/IHyLL37gkgw1TgIXAL6Wlw/UserByScreenName?${queryParam}`, {
+            headers: {
+                Authorization: `Bearer ${twitterToken}`,
+                'x-csrf-token': csrfToken,
+                Cookie: cookieHeader
+            },
+        })
+        return data.data.user.result.legacy.description.match(emailRegex) || []
+    } catch (err) {
+        if (isAxiosError(err)) console.error(err.response?.data, '아마 csrf와 token의 문제')
+        return []
+    }
+}
+
 async function fetchSiteChannelDescription(url: string) {
     // bio link에도 이메일을 적는 경우가 종종 있다
     url = url.trim()
-    if (emailRegex.test(url)) return [url]
+    if (emailRegex.test(url)) return url.match(EMAIL_REGEX) || []
+    const hostname = new URL(url).hostname
     for (const [keyword, handler] of handlerMap) {
-        if (url.includes(keyword)) return await handler(url)
+        if (hostname.includes(keyword)) return await handler(url)
     }
     return []
 }
@@ -130,8 +170,8 @@ async function fetchChannelData(channelId: string, channelUUID: string): Promise
 }
 
 if (require.main === module) {
-    const channelId = 'UC1q4Ihlv_YhLELw-ijE0Diw'
-    const uuid = '6d318ed2-0000-21a9-8dde-582429af5440'
+    const channelId = 'UCUmX_vGkidKTdJ-s-vsNN0g'
+    const uuid = '702c66bc-0000-211f-b0cc-582429c411e4'
 
     console.log(await fetchChannelData(channelId, uuid))
 }

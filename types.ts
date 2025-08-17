@@ -230,4 +230,16 @@ export interface SendMailDataV2 {
         thumbnail: string;
     };
     comments: MailDataTree;
+    statistics?: SpamStatistics;
+}
+
+export interface SpamPredictResult {
+    result: SpamContent[]
+    statistic: SpamStatistics
+}
+
+export interface SpamStatistics {
+    total: number,
+    spam: number,
+    politic: number
 }

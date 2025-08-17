@@ -1,15 +1,23 @@
 import dotenv from 'dotenv';
 import { Services, seperator, resizeStr } from '../modules';
-import fs from 'fs';
+import fs from 'fs/promises';
 import type { FetchedVideo, MailDataTree, SendMailData, SendMailDataV2, SpamContent } from '../types';
 import appRootPath from 'app-root-path';
 import pLimit from 'p-limit'
 import axios from 'axios';
+import { exec as execCallback } from 'child_process'
+import { promisify } from 'util';
+import path from 'path';
+import { generateMailDataV2 } from '../modules/generate-mail-data';
+
+const exec = promisify(execCallback)
+const { stdout, stderr } = await exec('sudo yt-dlp -U')
+console.log(stderr)
 
 dotenv.config({ path: `${appRootPath}/env/.env` })
 
 const dateDiff = 5;
-const includeShortsVideo = false;
+const includeShortsVideo = true;
 const predictDebugFlag = true
 
 try {
@@ -46,7 +54,8 @@ const getKoreanRatio = (text: string): number => {
 }
 
 const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
-const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').trim().split('\n').reduce((acc, item) => {
+
+const alreadyPredictedVideo = (await fs.readFile(alreadyPredictedVideoDB, 'utf-8')).trim().split('\n').reduce((acc, item) => {
     if (!item) return acc;
     const [baseTime, videoId, title] = item.split(seperator).map(data => data.trim())
     acc[videoId] = { baseTime, title }
@@ -54,8 +63,8 @@ const alreadyPredictedVideo = fs.readFileSync(alreadyPredictedVideoDB, 'utf-8').
 }, {} as {[key: string]: {baseTime: string, title: string}});
 
 
-const emailDBTxt = fs.readFileSync(`${appRootPath}/datas/emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
-const skipEmailDBTxt = fs.readFileSync(`${appRootPath}/datas/skip-emails.txt`, 'utf-8').trim().split('\n').map(data => data.trim())
+const emailDBTxt = (await fs.readFile(`${appRootPath}/datas/emails.txt`, 'utf-8')).trim().split('\n').map(data => data.trim())
+const skipEmailDBTxt = (await fs.readFile(`${appRootPath}/datas/skip-emails.txt`, 'utf-8')).trim().split('\n').map(data => data.trim())
 
 const mailDB = new Services.MailDB(emailDBTxt);
 const skipMailDB = new Services.MailDB(skipEmailDBTxt)
@@ -96,64 +105,23 @@ fetchedVideosList = null as any;
 
 // 메일 DB에 없다면 찾아야 할 것으로 넣기
 const toSearchEmailTxt = `${appRootPath}/datas/to-search-emails.txt`
-fs.writeFileSync(toSearchEmailTxt, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
-[...new Set(fetchedVideosSet.map(video => video.channelId))].forEach(channelId => {
-    if (mailDB.getEmail(channelId) || skipMailDB.existUser(channelId)) return
-    fs.appendFileSync(toSearchEmailTxt, `${channelId}, \n`, 'utf-8')
-})
+await fs.writeFile(toSearchEmailTxt, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
+for (const channelId of [...new Set(fetchedVideosSet.map(video => video.channelId))]) {
+    if (mailDB.getEmail(channelId) || skipMailDB.existUser(channelId)) continue
+    await fs.appendFile(toSearchEmailTxt, `${channelId}, \n`, 'utf-8')
+}
 
 // 동영상의 댓글 가져오고 추론하기
 const predictedVideoFormat: {[key: string]: {baseTime: string, title: string}} = {}
 
-const generateMailData = (videoInfo: FetchedVideo, spamContent: SpamContent[]): SendMailData => {
-    return {
-        video: {
-            id: videoInfo.id,
-            title: videoInfo.title,
-            thumbnail: videoInfo.thumbnail
-        }, 
-        comments: spamContent
-    }
-}
 
-const generateMailDataV2 = (videoInfo: FetchedVideo, spamComments: SpamContent[]): SendMailDataV2 => {
-    const printMailDataV2Tree = (mailData: MailDataTree) => {
-        Object.entries(mailData).forEach(([key, val]) => {
-            const {root, items} = val;
-            console.log(root.id, root.comment.replace(/\r/g, '').replace(/\n/g, ' '))
-            items.forEach(item => {
-                console.log('\t', item.id, item.parentId, item.comment.replace(/\r/g, '').replace(/\n/g, ' '))
-            })
-        })
-    }
-    spamComments.sort((a, b) => a.parentId!!.length - b.parentId!!.length)
-    const mailDataTree: MailDataTree = {}
-    const parentIds: string[] = [...new Set(spamComments.map(spamComment => spamComment.id!!.startsWith('U') ? spamComment.id : '').filter(id => id !== ''))]
-    spamComments.forEach(data => {
-        if (data.parentId === '') {
-            mailDataTree[data.id!!] = {
-                root: data,
-                items: []
-            }
-        } else {
-            if (parentIds.includes(data.parentId!!)) {
-                mailDataTree[data.parentId!!].items.push(data)
-            } else {
-                mailDataTree[data.id!!] = {
-                    root: data,
-                    items: []
-                }
-            }
-        }
-    })
-    // printMailDataV2Tree(mailDataTree);
+const predictRootDir = path.join(appRootPath.path, 'predict-results')
+const buildFilePath = (videoId: string, category: string) => {
+    const fileName = `${videoId}.${category}.txt`
     return {
-        video: {
-            id: videoInfo.id,
-            title: videoInfo.title,
-            thumbnail: videoInfo.thumbnail,
-        },
-        comments: mailDataTree
+        before: path.join(predictRootDir, 'predicts', fileName),
+        sent:  path.join(predictRootDir, 'predicts-sent', fileName),
+        emailNotFound: path.join(predictRootDir, 'email-not-found', fileName),
     }
 }
 
@@ -175,38 +143,44 @@ const predictCommentFunc = async (index: number, video: FetchedVideo, predictDeb
                                          // 400, 즉 동영상에 댓글이 없는 경우(거의 없긴 하다)
 
     const predictCommentsStart = performance.now()
-    const predictedAsSpam = await commentPredictor.predictComment(comments, videoId, predictDebugFlag);
+    const { result: predictedAsSpam, statistic } = await commentPredictor.predictComment(comments, videoId, predictDebugFlag);
     const predictCommentsEnd = performance.now() - predictCommentsStart
 
     console.log(`${new String(index + 1).padEnd(3, ' ')} / ${fetchedVideosSet.length} = fetch(${comments.length}): ${Math.floor(fetchCommentsEnd) / 1000}s predict: ${Math.floor(predictCommentsEnd) / 1000}s`)
     if (predictedAsSpam.length === 0) return; // 스팸으로 판명된 것이 없음
     
-    const filename = `${videoId}.spam.txt`
-    const beforeSpamFile = `${appRootPath}/predict-results/predicts/${filename}`;
-    const sentSpamFile = `${appRootPath}/predict-results/predicts-sent/${filename}`;
-    const emailNotFoundFile = `${appRootPath}/predict-results/email-not-found/${filename}`;
+    const spamPath = buildFilePath(videoId, 'spam')
+    const blamePath = buildFilePath(videoId, 'poli')
 
     // return
     // 이메일 DB에 이메일이 없다면? 이메일 없음으로 이동
     const emails = mailDB.getEmail(channelId);
     if (!emails) {
-        if (fs.existsSync(beforeSpamFile))
-            fs.rename(beforeSpamFile, emailNotFoundFile, (err) => {
-                if (err) console.error(err)
-            })
+        await Promise.all([spamPath, blamePath].map(async p => {
+            try {
+                await fs.access(p.before)
+                await fs.rename(p.before, p.emailNotFound)
+            } catch (err: any) {
+                if (err.code !== 'ENOENT') console.error(err)
+            }
+        }))
         return
     }
 
-    
-    if (fs.existsSync(beforeSpamFile)) 
-        fs.rename(beforeSpamFile, sentSpamFile, (err) => {
-            if (err) console.error(err)
-        });
+    await Promise.all([spamPath, blamePath].map(async p => {
+        try {
+            await fs.access(p.before)
+            await fs.rename(p.before, p.sent)
+        } catch (err: any) {
+            if (err.code !== 'ENOENT') console.error(err)
+        }
+    }))
 
-    return; // 실 서비스 전 정확도를 높이기 위해 25.05.24 기준 데이터만 수집
     // 메일 보내기
     const mailDataV2 = generateMailDataV2(video, predictedAsSpam)
-    // await mailerService.sendMail('gkstkdgus821@gmail.com', mailDataV2, 'v2')
+    mailDataV2.statistics = statistic
+    await mailerService.sendMail('gkstkdgus821@gmail.com', mailDataV2, 'v2')
+    return; // 실 서비스 전 정확도를 높이기 위해 25.05.24 기준 데이터만 수집 및 개발자 메일로 테스트
 
     for (const email of emails) {
         await mailerService.sendMail(email, mailDataV2, 'v2');
@@ -231,35 +205,25 @@ if (flag === 'sync') {
 }
 console.log(`predict total ${Math.floor(performance.now() - totalPredictStart) / 1000}s`)
 
-
 // 이미 추론한 것들을 저장해야할까? 삭제 안했을수도 있지 않을까?
 Object.assign(alreadyPredictedVideo, predictedVideoFormat);
 const writeData = Object.entries(alreadyPredictedVideo)
     .map(([key, val]) => `${val.baseTime}${seperator}${key}${seperator}${val.title}`)
-fs.writeFileSync(alreadyPredictedVideoDB, writeData.join('\n'), 'utf-8')
+
+await fs.writeFile(alreadyPredictedVideoDB, writeData.join('\n'), 'utf-8')
 
 // 혹시나 옮겨지지 못한 spam data가 있을 수 있으니 옮긺
-const predictedFilePath = `${appRootPath}/predict-results/predicts`
-const spamFilePath = `${appRootPath}/predict-results/email-not-found`
-const spamfileRegex = /\.spam\./;
-const notMovedSpamFiles = fs.readdirSync(predictedFilePath, { encoding: 'utf-8' }).filter((fileName) => spamfileRegex.test(fileName))
-let promises = notMovedSpamFiles.map(filename => {
-    return new Promise((resolve, reject) => {
-        fs.rename(
-            `${predictedFilePath}/${filename}`, 
-            `${spamFilePath}/${filename}`, 
-            (err) => {
-                if (err) {
-                    console.error(err)
-                    reject(err);
-                } else {                   
-                    resolve(0)
-                }
-            }
-        )
-    })
-})
+
+const predictedFilePath = path.join(predictRootDir, 'predicts')
+const spamFilePath = path.join(predictRootDir, 'email-not-found')
+const spamfileRegex = /\.(?:spam|poli)\./;
+let promises = (await fs.readdir(predictedFilePath, { encoding: 'utf-8' }))
+    .filter(filename => spamfileRegex.test(filename))
+    .map(filename => fs.rename(
+        path.join(predictedFilePath, filename),
+        path.join(spamFilePath, filename)
+    ))
 await Promise.all(promises)
-console.log('normal file count: ', fs.readdirSync(predictedFilePath).length)
+console.log('normal file count: ', (await fs.readdir(predictedFilePath)).length)
 
 await import(`${appRootPath}/datas/find-emails`)

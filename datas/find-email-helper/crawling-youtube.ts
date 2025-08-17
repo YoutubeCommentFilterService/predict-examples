@@ -16,7 +16,7 @@ const emailSearchTargetByChannelId = fs.readFileSync(SEARCH_EMAIL_LIST_FILE_PATH
 const retryTargetByChannelId = fs.readFileSync(RETRY_EMAIL_LIST_FILE_PATH, 'utf-8')
                             .trim().split('\n')
                             .map(line => line.split(tagSeperator)[0])
-const searchTargetChannelIds = [ ...emailSearchTargetByChannelId, ...retryTargetByChannelId ]
+const searchTargetChannelIds = [ ...emailSearchTargetByChannelId, ...retryTargetByChannelId ].filter(channelId => channelId)
 
 async function openBrowser(args: string[] = []): Promise<Browser> {
     return await puppeteer.launch({ 
@@ -39,7 +39,7 @@ async function crawlingStart(browser: Browser): Promise<YoutubeCrawlResult> {
     const crawlFaildList: YoutubeChannelUUIDInfo[] = []
     for (let retryCount = 0; ; retryCount++) {
         const timer = spinnerCarousel('CRAWLING CHANNEL UUID')
-        const { succeed: succeedList, failed: retryList } = await retrySearch(browser, retryCount, crawlFaildList.map(item => item.channelId))
+        const { succeed: succeedList, failed: retryList } = await retrySearch(browser, retryCount, crawlFaildList.map(item => item.channelId).filter(channelId => channelId))
         crawlSucceedList.push(...succeedList)
         crawlFaildList.splice(0, crawlFaildList.length, ...retryList)
         clearInterval(timer);
@@ -111,7 +111,10 @@ function processLimitedFetchYoutubeChannelUUID(browser: Browser, channelId: stri
 }
 
 async function getPage(browser: Browser) {
-    if (pagePool.length > 0) return pagePool.pop()!;
+    if (pagePool.length > 0) {
+        const page = pagePool.pop()!;
+        if (!page.isClosed()) return page;
+    }
 
     const page = await browser.newPage()
 

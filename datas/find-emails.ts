@@ -4,7 +4,7 @@ import axios, { isAxiosError } from 'axios';
 import dotenv from 'dotenv';
 import { seperator } from '../modules/utils';
 import fetchChannelData from './find-email-helper/fetch-bio';
-import { DATA_PATH, EMAIL_REGEX, MAX_FETCH_VIDEO_LENGTH, SEARCH_EMAIL_LIST_FILE_PATH } from './find-email-helper/constants';
+import { EMAIL_LIST_FILE_PATH, EMAIL_REGEX, MAX_FETCH_VIDEO_LENGTH, NOT_FOUND_EMAIL_LIST_FILE_PATH, RETRY_EMAIL_LIST_FILE_PATH, SEARCH_EMAIL_LIST_FILE_PATH } from './find-email-helper/constants';
 import { closeBrowser, crawlingStart, openBrowser } from './find-email-helper/crawling-youtube';
 import spinnerCarousel from './find-email-helper/spinner-carousel';
 import type { FetchPlaylistItemResult, YoutubeChannelInfo, YoutubePlaylistItemResponse, YoutubeVideoResponse } from './types/youtube';
@@ -125,8 +125,8 @@ const emailNotFoundDatas = Object.entries(youtubeChannelEmailRecord).filter(obj 
 const toLogText = (arr: string[]) => arr.length === 0 ? '' : arr.join('\n') + '\n'
 
 await Promise.all([
-    fs.promises.appendFile(`${DATA_PATH}/emails.txt`, toLogText(emailFoundDatas)),
-    fs.promises.appendFile(`${DATA_PATH}/not-found.txt`, toLogText(emailNotFoundDatas)),
-    fs.promises.appendFile(`${DATA_PATH}/retry-failed.txt`, toLogText(failed.map(item => item.channelId))),
+    fs.promises.appendFile(EMAIL_LIST_FILE_PATH, toLogText(emailFoundDatas)),
+    fs.promises.appendFile(NOT_FOUND_EMAIL_LIST_FILE_PATH, toLogText(emailNotFoundDatas)),
+    fs.promises.appendFile(RETRY_EMAIL_LIST_FILE_PATH, toLogText(failed.map(item => item.channelId))),
     fs.promises.rm(SEARCH_EMAIL_LIST_FILE_PATH)
 ])

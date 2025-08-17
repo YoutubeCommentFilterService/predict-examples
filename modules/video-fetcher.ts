@@ -1,11 +1,25 @@
 import axios, { isAxiosError } from 'axios'
 import type { FetchedVideo, YoutubeVideo, YoutubeVideoCategoryList, YoutubeVideoList } from '../types';
-import { exec } from 'child_process'
+import { exec, spawn as spawn } from 'child_process'
+import pLimit from 'p-limit';
 
 export default class VideoFetcher {
     private youtubeDataKey: string | undefined;
-    private enailRegex: RegExp = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    private resolutionRegex = /(\d+x\d+)/i;
     private dayMillisec = 1000 * 60 * 60 * 24;
+    private ytdlpFormatSpawn = (cmd: string, args: string[]): Promise<Set<string>> => new Promise((resolve, reject) => {
+        const proc = spawn(cmd, args)
+
+        const mediaFormats: Set<string> = new Set()
+        proc.on('error', reject)
+        proc.stdout.on('data', data => {
+            const message: string = data.toString()
+            message.split('\n').forEach(line => {
+                if (this.resolutionRegex.test(line)) mediaFormats.add(line.match(this.resolutionRegex)?.at(0) || '')
+            })
+        })
+        proc.on('close', code => code === 0 ? resolve(mediaFormats) : reject(new Error(`Exit code with ${code}`)))
+    })
 
     constructor() {
         this.youtubeDataKey = process.env.YOUTUBE_DATA_API_KEY;
@@ -85,6 +99,7 @@ export default class VideoFetcher {
             return this.generateCommonVideoDatas(data.items);
         } catch (err) {
             if (isAxiosError(err)) console.error(err.response)
+            return []
         }
     }
 
@@ -107,13 +122,16 @@ export default class VideoFetcher {
         })
     }
 
-    private removeShortsVideoItem = async (videos: YoutubeVideo[]) => {
+    private removeShortsVideoItem = async (videos: YoutubeVideo[]): Promise<YoutubeVideo[]> => {
+        const limit = pLimit(10)
         return (await Promise.all(
-            videos.map(async (video) => {
-                const isShortsVideo = await this.isShortsVideo(video)
-                return isShortsVideo ? null : video
-            })
-        )).filter(video => video !== null)
+            videos.map(async (video) => limit(
+                async() => {
+                    const isShortsVideo = await this.isShortsVideo(video)
+                    return isShortsVideo ? null : video
+                })
+            )
+        )).filter(video => video !== null) 
     }
 
     private generateCommonVideoDatas = (videos: YoutubeVideo[]): FetchedVideo[] => videos.map(video => ({
@@ -142,35 +160,13 @@ export default class VideoFetcher {
     };
 
     private getVideoResolutionRatio = async (videoId: string): Promise<number> => {
-        return new Promise((resolve, reject) => {
-            if (!videoId) reject('plz input youtube videoId')
-            exec(`yt-dlp -F 'https://www.youtube.com/watch?v=${videoId}'`, (err, stdout, stderr) => {
-                if (err) reject(`exec error: ${err}`);
-                if (stderr) reject(`stderr: ${stderr}`);
-
-                const notStartsWith = ['[', '---', 'ID']
-
-                const lines = stdout.trim().split('\n').filter(
-                    line => line && !notStartsWith.some(prefix => line.startsWith(prefix))
-                )
-                
-                const results = []
-                for (let line of lines) {
-                    const [id, ext, resolution, ...rest] = line.split(/\s+/)
-                    if (!['webm', 'mp4'].includes(ext)) continue;
-                    if (resolution === 'audio') continue;
-                    results.push({id, ext, resolution})
-                }
-    
-                const [width, height] = results.at(-1)?.resolution.toLowerCase().split('x') || []
-                if (!width || !height) reject(`video ${videoId} resolution not found`);
-    
-                const videoRatio = Number(width) / Number(height)
-                if (Number.isNaN(videoRatio)) reject(`video ${videoId} resolution calculation result is NaN`)
-    
-                resolve(videoRatio)
-            })
-        })
+        try {
+            const mediaFormats: Set<string> = await this.ytdlpFormatSpawn('yt-dlp', ['-F', videoId])
+            const [width, height] = mediaFormats.values().next().value?.split('x') as [string, string]
+            return parseInt(width) / (parseInt(height))
+        } catch {
+            return -1
+        }
     }
 
     private convertISO8601ToSecond = (duration: string): number => {

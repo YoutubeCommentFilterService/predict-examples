@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ExtractedComment, PredictResponse, PredictResult, SpamContent, SpamPredictResult, SpamResult } from '../types';
+import type { ExtractedComment, FastAPICommentPredictResponse, SpamContent, SpamPredictResult } from '../types';
 import fs from 'fs';
 import appRootPath from 'app-root-path';
 
@@ -32,7 +32,7 @@ export default class CommentPredictor {
                 nickname: data.nickname,
                 comment: data.translatedText,
             }))
-            const { data } = await axios.post<PredictResponse>(`${this.serverUrl}/predict`, { items })
+            const { data } = await axios.post<FastAPICommentPredictResponse>(`${this.serverUrl}/predict`, { items })
             const { comment_categories: commentCategories, nickname_categories: nicknameCategories } = data;
 
             // 좀 더 안정적이려면 id를 비교해서 가져오는게 최고.
@@ -72,7 +72,7 @@ export default class CommentPredictor {
             else console.error(err)
         }
         Object.keys(predictResults).forEach(key => {
-            if (!debug && !(key === 'spam' || key === 'poli')) return;
+            if (!debug && !(key === 'spam')) return;
             if (predictResults[key].length > 0) this.saveResult(key, videoId, predictResults[key])
         })
         const spamPredictResult: SpamPredictResult = {
@@ -87,7 +87,7 @@ export default class CommentPredictor {
     }
 
     private saveResult = (type: string, videoId: string, datas: string[]): void => {
-        const fname = `${appRootPath}/predict-results/predicts/${videoId}.${type}.txt`
+        const fname = `${appRootPath}/predict-results/predicts/${videoId}.${datas.length.toString().padStart(4, '0')}.${type}.txt`
         const writeData = datas.join('\n')
         fs.writeFile(fname, writeData, (err) => {
             if (err) console.error(err)

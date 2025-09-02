@@ -1,10 +1,9 @@
 import nodemailer from 'nodemailer';
-import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import ejs from 'ejs';
 import appRootPath from 'app-root-path';
 
 export default class MailerService {
-    private transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo, SMTPTransport.Options>;
+    private transporter: nodemailer.Transporter;
     private mainTemplatePath: string = `${appRootPath}/static/spam-comment-email-template.ejs`
     private templatePath: {[key: string]: string} = {
         v0: `${appRootPath}/static/v0.ejs`,
@@ -32,6 +31,7 @@ export default class MailerService {
                 user: process.env.MAILER_USER,
                 pass: process.env.MAILER_PASS,
             },
+            pool: true
             // logger: true,
             // debug: true
         })
@@ -55,7 +55,6 @@ export default class MailerService {
     })
 
     sendMail = async (to: string, data: any, version: string = 'v1'): Promise<void> => {
-        console.log(version)
         try {
             const title = `유튜브 영상 "${this.truncateString(data.video.title, 20)}" 댓글 관리 안내`
             const mailBody = await this.renderTemplate(this.templatePath[version], { comments: data['comments'] })

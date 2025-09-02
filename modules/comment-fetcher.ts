@@ -1,6 +1,7 @@
 import axios, { type AxiosResponse } from 'axios'
 import type { YoutubeCommentThreadList, ExtractedComment, YoutubeCommentThread, YoutubeComment, YoutubeCommentList } from '../types';
 import Translator from './translator';
+import { setTimeout } from 'timers/promises';
 
 export default class CommentFetcher {
     private youtubeDataKey: string | undefined;
@@ -25,8 +26,13 @@ export default class CommentFetcher {
         let comments: ExtractedComment[] = []
 
         const now = new Date().toISOString().split('.')[0] + 'Z'
+        let retrycount = 0;
         do {
             try {
+                if (retrycount > 3) {
+                    console.error(`Retry limit exceeded for videoId: ${videoId}`);
+                    break;
+                }
                 const data = await this.fetchCommentThreads(videoId, maxResults, nextPageToken);
                 nextPageToken = data.nextPageToken;
                 for (let topLevelComment of data.items) {
@@ -38,13 +44,23 @@ export default class CommentFetcher {
                                         : await this.fetchSubCommentById(topLevelComment.id, maxResults, videoOwnerId)
                     comments.push(...results)
                 }
+                
+                retrycount = 0;
             } catch (err) {
                 if (axios.isAxiosError(err)) {
                     const axiosError = err.response?.data
+                    if (axiosError?.error?.errors?.reason === "processingFailure") {
+                        nextPageToken = null;
+                    } else {
+                        retrycount++;
+                        await setTimeout(1000);
+                    }
                     console.error(axiosError?.error?.code, axiosError?.error?.errors)
                 }
-                else console.error(err)
-                nextPageToken = null;
+                else {
+                    console.error(err)
+                    nextPageToken = null;
+                }
             }
         } while (nextPageToken);
 

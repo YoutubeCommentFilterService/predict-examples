@@ -10,9 +10,15 @@ const pagePool: Page[] = []
 const emailFetchProcessLimit = pLimit(MAX_THREAD_SIZE)
 
 const tagSeperator = new RegExp(`[,${seperator}]`, 'g');
-const emailSearchTargetByChannelId = fs.readFileSync(SEARCH_EMAIL_LIST_FILE_PATH, 'utf-8')
-                            .trim().split('\n')
-                            .slice(1).map(line => line.split(tagSeperator)[0])
+let emailSearchTargetByChannelId: string[] = []
+try {
+    emailSearchTargetByChannelId = fs.readFileSync(SEARCH_EMAIL_LIST_FILE_PATH, 'utf-8')
+                                .trim().split('\n')
+                                .slice(1).map(line => line.split(tagSeperator)[0])
+} catch(e) {
+    emailSearchTargetByChannelId = []
+}
+
 const retryTargetByChannelId = fs.readFileSync(RETRY_EMAIL_LIST_FILE_PATH, 'utf-8')
                             .trim().split('\n')
                             .map(line => line.split(tagSeperator)[0])
@@ -54,7 +60,7 @@ async function fetchYoutubeChannelUUID(
     channelId: string, 
     maxThreadSize: number = 16
 ): Promise<YoutubeChannelUUIDInfo> {
-    const moreButtonSelector = '#page-header > yt-page-header-renderer > yt-page-header-view-model > div > div.page-header-view-model-wiz__page-header-headline > div > yt-description-preview-view-model > truncated-text > button'
+    const moreButtonSelector = '#page-header > yt-page-header-renderer > yt-page-header-view-model > div > div.page-header-view-model-wiz__page-header-headline > div > yt-description-preview-view-model'
     const channelNameSelector = '#page-header > yt-page-header-renderer > yt-page-header-view-model > div > div.page-header-view-model-wiz__page-header-headline > div > yt-dynamic-text-view-model > h1 > span'
     const uuidComponentSelector = '#content > ytd-section-list-renderer'
 
@@ -68,7 +74,7 @@ async function fetchYoutubeChannelUUID(
 
         intervalTimerId = setInterval(async () => { await page.bringToFront(); }, intervalRate);
 
-        await page.waitForSelector(moreButtonSelector, { timeout: 3000 })
+        await page.waitForSelector(moreButtonSelector, { timeout: 10000 })
 
         const channelName = await page.$eval(channelNameSelector, el => el.innerText);
 

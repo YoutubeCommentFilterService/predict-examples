@@ -56,12 +56,6 @@ export interface YoutubeComment extends YoutubeCommonField {
     }
 }
 
-export interface SpamResult {
-    id?: string;
-    nickname: string;
-    comment: string;
-}
-
 export interface ExtractedComment {
     id: string;
     likes: number;
@@ -75,38 +69,19 @@ export interface ExtractedComment {
     parentId: string;
 }
 
-export interface PredictResponse {
-    items: PredictResult[];
+export interface FastAPICommentPredictResponse {
+    items: FastAPICommentPredictResult[];
     model_type: string;
     comment_categories: string[];
     nickname_categories: string[];
 }
 
-export interface PredictResult {
+export interface FastAPICommentPredictResult {
     id: string;
     comment_predicted: string;
     comment_predicted_prob: number[];
     nickname_predicted: string;
     nickname_predicted_prob: number[];
-}
-
-export interface SendMailData {
-    video: {
-        id: string;
-        title: string;
-        thumbnail: string;
-    };
-    comments: SpamContent[];
-}
-
-export interface SpamContent extends SpamResult {
-    profileImage: string;
-    nicknamePredicted: string;
-    nicknameProb: string;
-    commentPredicted: string;
-    commentProb: string;
-    parentId?: string;
-    updatedAt?: string;
 }
 
 export interface YoutubeVideoList extends YoutubeCommonField, YoutubeCommonPagenation {
@@ -216,6 +191,28 @@ export interface ChannelInfo {
     handler: string;
 }
 
+export interface SendMailData {
+    video: {
+        id: string;
+        title: string;
+        thumbnail: string;
+    };
+    comments: SpamContent[];
+}
+
+export interface SpamContent {
+    id?: string;
+    nickname: string;
+    comment: string;
+    profileImage: string;
+    nicknamePredicted: string;
+    nicknameProb: string;
+    commentPredicted: string;
+    commentProb: string;
+    parentId?: string;
+    updatedAt?: string;
+}
+
 export interface MailDataTree {
     [key: string]: {
         root: SpamContent,
@@ -230,16 +227,21 @@ export interface SendMailDataV2 {
         thumbnail: string;
     };
     comments: MailDataTree;
-    statistics?: SpamStatistics;
+    statistics?: PredictResultStastic;
 }
 
 export interface SpamPredictResult {
     result: SpamContent[]
-    statistic: SpamStatistics
+    statistic: PredictResultStastic
 }
 
-export interface SpamStatistics {
+export interface PredictResultStastic {
     total: number,
     spam: number,
     politic: number
+}
+
+export interface PredictResult {
+    video: FetchedVideo,
+    result?: SpamPredictResult
 }

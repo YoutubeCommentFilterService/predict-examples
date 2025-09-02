@@ -48,7 +48,7 @@ export interface YoutubeChannelInfo {
     channelName: string
     channelHandler: string
     emails: string[]
-    uuid: string
+    uuid?: string
 }
 
 export interface YoutubeChannelUUIDInfo {
@@ -66,4 +66,20 @@ export interface YoutubeChannelBio {
     channelId: string
     channelHandler?: string
     emails?: string[]
+}
+
+export interface ServiceTracking {
+    service: string
+    params: ServiceTrackingParam[]
+}
+export interface ServiceTrackingParam {
+    key: string
+    value: string
+}
+export interface YoutubeCrawlData {
+    description: string
+    externalLinks: string[]
+    handler: string
+    channelId: string
+    channelName: string
 }

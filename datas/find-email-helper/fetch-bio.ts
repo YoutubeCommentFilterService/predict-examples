@@ -113,7 +113,7 @@ async function fetchXInfo(url: string) {
     }
 }
 
-async function fetchSiteChannelDescription(url: string) {
+export async function fetchSiteChannelDescription(url: string) {
     // bio link에도 이메일을 적는 경우가 종종 있다
     url = url.trim()
     if (emailRegex.test(url)) return url.match(EMAIL_REGEX) || []
@@ -124,12 +124,12 @@ async function fetchSiteChannelDescription(url: string) {
     return []
 }
 
-async function fetchChannelData(channelId: string, channelUUID: string): Promise<YoutubeChannelBio> {
+export async function fetchChannelData(channelId: string, channelUUID: string): Promise<YoutubeChannelBio> {
     const toBase64 = `â©²\`${channelId}D8gYrGimaASYK${Buffer.from(`$${channelUUID}`).toString('base64url')}%3D%3D`
 
     try {
         const { data } = await axios.post<YoutubeChannelBioResponse>(
-            'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false', {
+            'https://www.youtube.com/youtubei/v1/browse', {
                 "context": {
                     "client": {
                         "clientName": "WEB",
@@ -175,5 +175,3 @@ if (require.main === module) {
 
     console.log(await fetchChannelData(channelId, uuid))
 }
-
-export default fetchChannelData;

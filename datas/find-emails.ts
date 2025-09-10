@@ -54,13 +54,12 @@ import { fetchSiteChannelDescription } from './find-email-helper/fetch-bio';
 let retryFailedIds: string[] = []
 let toSearchIds: string[] = []
 try {
-    retryFailedIds = fs.readFileSync(RETRY_EMAIL_LIST_FILE_PATH, { encoding: 'utf-8' }).split('\n').filter(Boolean).map(x => x.trim().replace(/\,/g, ''))
+    retryFailedIds = fs.readFileSync(RETRY_EMAIL_LIST_FILE_PATH, { encoding: 'utf-8' }).split('\n').filter(Boolean).map(x => x.trim())
 } catch (e) {}
 try {
     toSearchIds = fs.readFileSync(SEARCH_EMAIL_LIST_FILE_PATH, { encoding: 'utf-8' }).split('\n').filter(Boolean).splice(1).map(x => x.trim())
 } catch (e) {}
-const targetIds: string[] = [...retryFailedIds, ...toSearchIds]
-console.log(targetIds)
+const targetIds: string[] = [...retryFailedIds, ...toSearchIds].map(id => id.replace(/\,/g, ''))
 
 const spinnerOfFetchDescriptionJson = spinnerCarousel('FETCH DESCRIPTION JSON')
 const bioInfos = await Promise.all(targetIds.map(fetchYoutubeBio))

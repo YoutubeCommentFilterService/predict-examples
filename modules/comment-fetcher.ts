@@ -50,6 +50,8 @@ export default class CommentFetcher {
                 if (axios.isAxiosError(err)) {
                     const axiosError = err.response?.data
                     if (axiosError?.error?.errors?.reason === "processingFailure") {
+                        continue;
+                    } else if (axiosError?.error?.errors.reason === "commentsDisabled") {
                         nextPageToken = null;
                     } else {
                         retrycount++;

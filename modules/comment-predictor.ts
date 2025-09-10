@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { ExtractedComment, FastAPICommentPredictResponse, SpamContent, SpamPredictResult } from '../types';
 import fs from 'fs';
 import appRootPath from 'app-root-path';
+import path from 'path';
 
 export default class CommentPredictor {
     private serverUrl: string | undefined;
@@ -87,10 +88,14 @@ export default class CommentPredictor {
     }
 
     private saveResult = (type: string, videoId: string, datas: string[]): void => {
-        const fname = `${appRootPath}/predict-results/predicts/${videoId}.${datas.length.toString().padStart(4, '0')}.${type}.txt`
+        const fname = path.join(appRootPath.path, 'predict-results', 'predicts', generateFileName(videoId, type, datas.length))
         const writeData = datas.join('\n')
         fs.writeFile(fname, writeData, (err) => {
             if (err) console.error(err)
         })
     }
+}
+
+export const generateFileName = (videoId: string, type: string, dataLen: number) => {
+    return `${videoId}.${dataLen.toString().padStart(4, '0')}.${type}.txt`
 }

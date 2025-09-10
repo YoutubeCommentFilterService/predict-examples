@@ -9,12 +9,14 @@ import { exec as execCallback } from 'child_process'
 import { promisify } from 'util';
 import path from 'path';
 import { generateMailDataV2 } from '../modules/generate-mail-data';
+import { ALREADY_PREDICTED_VIDEOS_LIST_PATH, EMAIL_LIST_FILE_PATH, PREDICT_RESULT_PATH, SEARCH_EMAIL_LIST_FILE_PATH, SKIP_EMAIL_LIST_FILE_PATH } from '../datas/find-email-helper/constants';
+import { generateFileName } from '../modules/comment-predictor';
 
 const exec = promisify(execCallback)
 const { stdout, stderr } = await exec('sudo yt-dlp -U')
 console.log(stderr)
 
-dotenv.config({ path: `${appRootPath}/env/.env` })
+dotenv.config({ path: path.join(appRootPath.path, 'env', '.env') })
 
 const dateDiff = 5;
 const includeShortsVideo = true;
@@ -29,7 +31,7 @@ try {
     process.exit(-1)
 }
 
-let flag
+let flag = ''
 if (process.argv.length !== 3) {
     console.warn('if argv[2] is not provided, "async" process is default')
     flag = 'async'
@@ -38,6 +40,11 @@ else if (!['sync', 'async'].includes(process.argv[2])) {
     console.error('parameter is "async" or "sync"')
     process.exit(-1)
 }
+
+await fs.mkdir(PREDICT_RESULT_PATH, { recursive: true })
+await Promise.all(['email-not-found', 'predicts', 'predicts-sent'].map(async dirName => {
+    await fs.mkdir(path.join(PREDICT_RESULT_PATH, dirName), { recursive: true })
+}))
 
 const imojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1FAFF}]|[\u{2600}-\u{26FF}]/gu
 const trimRegex = /[\s]/g
@@ -53,9 +60,7 @@ const getKoreanRatio = (text: string): number => {
     return koreans.length / cleanedText.length * 100;
 }
 
-const alreadyPredictedVideoDB = `${appRootPath}/datas/already-predicted.txt`
-
-const alreadyPredictedVideo = (await fs.readFile(alreadyPredictedVideoDB, 'utf-8')).trim().split('\n').reduce((acc, item) => {
+const alreadyPredictedVideo = (await fs.readFile(ALREADY_PREDICTED_VIDEOS_LIST_PATH, 'utf-8')).trim().split('\n').reduce((acc, item) => {
     if (!item) return acc;
     const [baseTime, videoId, title] = item.split(seperator).map(data => data.trim())
     acc[videoId] = { baseTime, title }
@@ -63,8 +68,8 @@ const alreadyPredictedVideo = (await fs.readFile(alreadyPredictedVideoDB, 'utf-8
 }, {} as {[key: string]: {baseTime: string, title: string}});
 
 
-const emailDBTxt = (await fs.readFile(`${appRootPath}/datas/emails.txt`, 'utf-8')).trim().split('\n').map(data => data.trim())
-const skipEmailDBTxt = (await fs.readFile(`${appRootPath}/datas/skip-emails.txt`, 'utf-8')).trim().split('\n').map(data => data.trim())
+const emailDBTxt = (await fs.readFile(EMAIL_LIST_FILE_PATH, 'utf-8')).trim().split('\n').map(data => data.trim())
+const skipEmailDBTxt = (await fs.readFile(SKIP_EMAIL_LIST_FILE_PATH, 'utf-8')).trim().split('\n').map(data => data.trim())
 
 const mailDB = new Services.MailDB(emailDBTxt);
 const skipMailDB = new Services.MailDB(skipEmailDBTxt)
@@ -104,24 +109,22 @@ let fetchedVideosSet = Array.from(new Map(fetchedVideosList.map(video => [video.
 fetchedVideosList = null as any;
 
 // 메일 DB에 없다면 찾아야 할 것으로 넣기
-const toSearchEmailTxt = `${appRootPath}/datas/to-search-emails.txt`
-await fs.writeFile(toSearchEmailTxt, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
+await fs.writeFile(SEARCH_EMAIL_LIST_FILE_PATH, `${"id".padEnd(24, ' ')}, email\n`, 'utf-8');
 for (const channelId of [...new Set(fetchedVideosSet.map(video => video.channelId))]) {
     if (mailDB.getEmail(channelId) || skipMailDB.existUser(channelId)) continue
-    await fs.appendFile(toSearchEmailTxt, `${channelId}, \n`, 'utf-8')
+    await fs.appendFile(SEARCH_EMAIL_LIST_FILE_PATH, `${channelId}, \n`, 'utf-8')
 }
 
 // 동영상의 댓글 가져오고 추론하기
 const predictedVideoFormat: {[key: string]: {baseTime: string, title: string}} = {}
 
 
-const predictRootDir = path.join(appRootPath.path, 'predict-results')
 const buildFilePath = (videoId: string, category: string, size: number) => {
-    const fileName = `${videoId}.${category}.${size.toString().padStart(4, '0')}.txt`
+    const fileName = generateFileName(videoId, category, size)
     return {
-        before: path.join(predictRootDir, 'predicts', fileName),
-        sent: path.join(predictRootDir, 'predicts-sent', fileName),
-        emailNotFound: path.join(predictRootDir, 'email-not-found', fileName),
+        before: path.join(PREDICT_RESULT_PATH, 'predicts', fileName),
+        sent: path.join(PREDICT_RESULT_PATH, 'predicts-sent', fileName),
+        emailNotFound: path.join(PREDICT_RESULT_PATH, 'email-not-found', fileName),
     }
 }
 
@@ -167,21 +170,6 @@ const sendSpamPredictedEmail = async (predictedData: PredictResult) => {
     }
 }
 
-const moveFiles = async(channelId: string, videoId: string, statistic: PredictResultStastic) => {
-    const spamPath = buildFilePath(videoId, 'spam', statistic.spam || 0)
-
-    const emails = mailDB.getEmail(channelId);
-    const targets = [spamPath].map(p => 
-        fs.rename(
-            p.before, 
-            emails ? p.sent : p.emailNotFound
-        ).catch((err: any) => {
-            if (err.code !== 'ENOENT') console.error(err)
-        })
-    )
-    await Promise.all(targets);
-}
-
 const totalPredictStart = performance.now()
 
 flag = flag || process.argv[2]
@@ -200,6 +188,24 @@ if (flag === 'sync') {
 }
 console.log(`predict total ${Math.floor(performance.now() - totalPredictStart) / 1000}s`)
 
+
+const moveFiles = async(channelId: string, videoId: string, statistic: PredictResultStastic) => {
+    if (!statistic.spam) return;
+    const spamPath = buildFilePath(videoId, 'spam', statistic.spam || 0)
+
+    const emails = mailDB.getEmail(channelId);
+    // console.log(videoId, spamPath.before, emails ? spamPath.sent : spamPath.emailNotFound)
+    const targets = [spamPath].map(p => 
+        fs.rename(
+            p.before, 
+            emails ? p.sent : p.emailNotFound
+        ).catch((err: any) => {
+            if (err.code !== 'ENOENT') console.error(err)
+            else console.error(videoId, err)
+        })
+    )
+    await Promise.all(targets);
+}
 await Promise.all(predictCommentResults.map(result => 
     moveFiles(result.video.channelId, result.video.id, result.result?.statistic || {})
 ))
@@ -216,20 +222,10 @@ Object.assign(alreadyPredictedVideo, predictedVideoFormat);
 const writeData = Object.entries(alreadyPredictedVideo)
     .map(([key, val]) => `${val.baseTime}${seperator}${key}${seperator}${val.title}`)
 
-await fs.writeFile(alreadyPredictedVideoDB, writeData.join('\n'), 'utf-8')
+await fs.writeFile(ALREADY_PREDICTED_VIDEOS_LIST_PATH, writeData.join('\n'), 'utf-8')
 
 // 혹시나 옮겨지지 못한 spam data가 있을 수 있으니 옮긺
-
-const predictedFilePath = path.join(predictRootDir, 'predicts')
-const spamFilePath = path.join(predictRootDir, 'email-not-found')
-const spamfileRegex = /\.(?:spam|poli)\./;
-let promises = (await fs.readdir(predictedFilePath, { encoding: 'utf-8' }))
-    .filter(filename => spamfileRegex.test(filename))
-    .map(filename => fs.rename(
-        path.join(predictedFilePath, filename),
-        path.join(spamFilePath, filename)
-    ))
-await Promise.all(promises)
+const predictedFilePath = path.join(PREDICT_RESULT_PATH, 'predicts')
 console.log('normal file count: ', (await fs.readdir(predictedFilePath)).length)
 
 await import(`${appRootPath}/datas/find-emails`)
